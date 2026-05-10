@@ -1,4 +1,5 @@
 import argparse
+import os
 import shlex
 import sys
 import traceback
@@ -116,6 +117,11 @@ def main() -> None:
         sys.exit(1)
     if args.debug_level >= 2:
         HTTPConnection.debuglevel = 1
+    highlight_keywords = [
+        k.strip()
+        for k in os.environ.get("SAFEWAY_HIGHLIGHT_KEYWORDS", "").split(",")
+        if k.strip()
+    ]
     sc = SafewayCoupons(
         send_email=args.send_email,
         sendmail=args.sendmail,
@@ -125,6 +131,7 @@ def main() -> None:
         dry_run=args.dry_run,
         max_clip_count=args.max_clip_count,
         interactive_sign_in=args.interactive_sign_in,
+        highlight_keywords=highlight_keywords,
     )
     errors = 0
     try:

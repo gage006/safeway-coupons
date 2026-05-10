@@ -53,6 +53,8 @@ Accounts come from exactly one of two sources (checked in this order; see `confi
 - **Env vars (single account):** `SAFEWAY_ACCOUNT_USERNAME` (required), `SAFEWAY_ACCOUNT_PASSWORD` (required), `SAFEWAY_ACCOUNT_MAIL_FROM`, `SAFEWAY_ACCOUNT_MAIL_TO`.
 - **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`.
 
+Independent of account source, `SAFEWAY_HIGHLIGHT_KEYWORDS` (comma-separated, e.g. `FREE,BOGO`) restricts the per-offer listing in the success email to coupons whose `offer_price` matches any of the keywords (case-insensitive, word-boundary regex). Read in `app.py::main` and threaded through `SafewayCoupons` → `email_clip_results`.
+
 The Docker image (`Dockerfile` + `docker/entrypoint`) wraps the CLI in cron and exposes the same env vars plus `CRON_SCHEDULE`, `SMTPHOST`, `SAFEWAY_ACCOUNTS_FILE`, `DEBUG_DIR`, `EXTRA_ARGS`.
 
 ## Conventions

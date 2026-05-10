@@ -23,6 +23,7 @@ class SafewayCoupons:
         max_clip_count: int = 0,
         max_clip_errors: int = CLIP_ERROR_MAX,
         interactive_sign_in: bool = False,
+        highlight_keywords: Optional[list[str]] = None,
     ) -> None:
         self.send_email = send_email
         self.sendmail = sendmail or ["/usr/sbin/sendmail"]
@@ -33,11 +34,14 @@ class SafewayCoupons:
         self.max_clip_count = max_clip_count
         self.max_clip_errors = max_clip_errors
         self.interactive_sign_in = interactive_sign_in
+        self.highlight_keywords = highlight_keywords or []
 
     def clip_for_account(self, account: Account) -> None:
         print(f"Clipping coupons for Safeway account {account.username}")
         try:
-            swy = SafewayClient(account, self.interactive_sign_in, self.debug_dir)
+            swy = SafewayClient(
+                account, self.interactive_sign_in, self.debug_dir
+            )
             clipped_offers: list[Offer] = []
             clip_errors: list[ClipError] = []
             offers = swy.get_offers()
@@ -90,6 +94,7 @@ class SafewayCoupons:
                 clip_errors=clip_errors,
                 debug_level=self.debug_level,
                 send_email=self.send_email and not self.dry_run,
+                highlight_keywords=self.highlight_keywords,
             )
         except Error as e:
             email_error(
