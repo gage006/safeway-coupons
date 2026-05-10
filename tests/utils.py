@@ -13,7 +13,7 @@ class ClipsTestConfig:
     failed_offer_ids: list[str] = field(default_factory=list)
 
 
-def create_offer(offer_id: str) -> Offer:
+def create_offer(offer_id: str, offer_price: str = "$99 OFF") -> Offer:
     return Offer(
         offer_id=offer_id,
         status=OfferStatus.Unclipped,
@@ -21,7 +21,7 @@ def create_offer(offer_id: str) -> Offer:
         description="Test item for unit testing",
         start_date=datetime.now() - timedelta(days=1),
         end_date=datetime.now() + timedelta(days=1),
-        offer_price="$99 OFF",
+        offer_price=offer_price,
         offer_pgm=OfferType.PersonalizedDeal,
         category_type="Unit Test foods",
         image="https://i.imgur.com/oWSZ8YM.jpg",

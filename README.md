@@ -123,6 +123,11 @@ A single Safeway account can be configured with environment variables:
 * `SAFEWAY_ACCOUNT_PASSWORD`: Account password (required)
 * `SAFEWAY_ACCOUNT_MAIL_FROM`: Sender address for email summary
 * `SAFEWAY_ACCOUNT_MAIL_TO`: Recipient address for email summary
+* `SAFEWAY_HIGHLIGHT_KEYWORDS`: Optional comma-separated keywords (e.g.
+  `FREE` or `FREE,BOGO`). When set, the per-offer listing in the
+  summary email only includes coupons whose price string matches one
+  of the keywords (case-insensitive, whole-word match). When unset,
+  all clipped coupons are listed.
 
 #### With config file
 

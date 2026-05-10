@@ -1,6 +1,7 @@
 import collections
 import mimetypes
 import os
+import re
 import subprocess
 from email.message import EmailMessage
 from pathlib import Path
@@ -60,6 +61,7 @@ def email_clip_results(
     clip_errors: Optional[list[ClipError]],
     debug_level: int,
     send_email: bool,
+    highlight_keywords: Optional[list[str]] = None,
 ) -> None:
     offers_by_type = collections.defaultdict(list)
     for offer in offers:
@@ -73,6 +75,21 @@ def email_clip_results(
         mail_message.append(
             f"    {offer_type.name}: {len(offers_this_type)} coupons"
         )
+    keywords = [k for k in (highlight_keywords or []) if k]
+    if keywords:
+        pattern = re.compile(
+            r"\b(" + "|".join(re.escape(k) for k in keywords) + r")\b",
+            re.IGNORECASE,
+        )
+        listed_offers = [o for o in offers if pattern.search(o.offer_price)]
+        section_header = f"Coupons matching {', '.join(keywords)}:"
+    else:
+        listed_offers = list(offers)
+        section_header = "Clipped coupons:"
+    if listed_offers:
+        mail_message += ["", section_header]
+        for offer in listed_offers:
+            mail_message.append(str(offer))
     _send_email(
         sendmail, account, mail_subject, mail_message, debug_level, send_email
     )
