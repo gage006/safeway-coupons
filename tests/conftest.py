@@ -12,7 +12,9 @@ import responses
 import undetected_chromedriver as uc  # type: ignore
 from selenium.webdriver.support.wait import WebDriverWait
 
+from safeway_coupons import chrome_driver as chrome_driver_mod
 from safeway_coupons.models import Offer, OfferList
+from safeway_coupons.session import LoginSession
 
 from .utils import ClipsTestConfig
 
@@ -24,9 +26,20 @@ def http_responses() -> Iterator[responses.RequestsMock]:
 
 
 @pytest.fixture(autouse=True)
+def mock_chrome_version() -> Iterator[mock.MagicMock]:
+    with mock.patch.object(
+        chrome_driver_mod,
+        "chrome_version",
+        return_value="Google Chrome 135.0.0.0\n",
+    ) as mock_ver:
+        yield mock_ver
+
+
+@pytest.fixture(autouse=True)
 def mock_undetected_chromedriver(
     mock_web_driver_wait: mock.MagicMock,
     mock_sleep: mock.MagicMock,
+    mock_chrome_version: mock.MagicMock,
 ) -> Iterator[mock.MagicMock]:
     with mock.patch.object(uc, "Chrome") as mock_uc:
         mock_driver = mock_uc.return_value
@@ -41,7 +54,9 @@ def mock_web_driver_wait() -> Iterator[mock.MagicMock]:
 
 
 @pytest.fixture
-def login_success(mock_undetected_chromedriver: mock.MagicMock) -> None:
+def login_success(
+    mock_undetected_chromedriver: mock.MagicMock,
+) -> Iterator[None]:
     cookies = {
         "SWY_SHARED_SESSION": {"accessToken": "test_token"},
         "SWY_SHARED_SESSION_INFO": {"info": {"J4U": {"storeId": 42}}},
@@ -54,7 +69,10 @@ def login_success(mock_undetected_chromedriver: mock.MagicMock) -> None:
         }
 
     mock_undetected_chromedriver.get_cookie.side_effect = _get_cookie
-    return
+    with mock.patch.object(
+        LoginSession, "_sign_in_success", staticmethod(lambda driver: True)
+    ):
+        yield
 
 
 @pytest.fixture
@@ -110,7 +128,9 @@ def available_offers(
             200,
             {"Content-Type": "application/json"},
             json.dumps(
-                OfferList(offers=offers_list).to_dict(encode_json=True)
+                OfferList(offers={o.offer_id: o for o in offers_list}).to_dict(
+                    encode_json=True
+                )
             ),
         ),
     )
