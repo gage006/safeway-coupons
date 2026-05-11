@@ -1,9 +1,9 @@
 import contextlib
+import re
 import subprocess
 import sys
-import re
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 
 import undetected_chromedriver as uc  # type: ignore
 
@@ -15,12 +15,20 @@ CHROMEDRIVER_PATH = (
     / "undetected_chromedriver"
 )
 
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/135.0.0.0 Safari/537.36"
+)
+
 
 class ChromeDriverDoesNotExist(Exception):
     pass
 
+
 class ChromeDoesNotExist(Exception):
     pass
+
 
 @contextlib.contextmanager
 def chrome_driver(headless: bool = True) -> Iterator[uc.Chrome]:
@@ -34,27 +42,26 @@ def chrome_driver(headless: bool = True) -> Iterator[uc.Chrome]:
         "--disable-gpu",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36\"",
+        f'--user-agent="{USER_AGENT}"',
     ]:
         options.add_argument(option)
     if headless:
         options.add_argument("--headless=new")
-    version_main = re.findall('(\\d+)\\.', chrome_version())
-    if len(version_main) > 0:
-        version_main = version_main[0]
-    driver = uc.Chrome(options=options, version_main=int(version_main))
+    version_match = re.findall(r"(\d+)\.", chrome_version())
+    version_main = int(version_match[0]) if version_match else 0
+    driver = uc.Chrome(options=options, version_main=version_main)
     yield driver
     driver.quit()
 
+
 def chrome_version() -> str:
-    chrome_path = Path('/usr/bin/google-chrome')
+    chrome_path = Path("/usr/bin/google-chrome")
     if not chrome_path.is_file():
-        raise ChromeDoesNotExist(
-            f"Error: {chrome_path} does not exist"
-        )
+        raise ChromeDoesNotExist(f"Error: {chrome_path} does not exist")
     cmd = [str(chrome_path), "--version"]
     result = subprocess.run(cmd, capture_output=True)
     return result.stdout.decode()
+
 
 def chrome_driver_version() -> str:
     if not CHROMEDRIVER_PATH.is_file():
@@ -66,10 +73,8 @@ def chrome_driver_version() -> str:
     result = subprocess.run(cmd, capture_output=True)
     return result.stdout.decode()
 
+
 def init() -> None:
-#    with contextlib.suppress(ChromeDriverDoesNotExist):
-#        print(chrome_driver_version())
-#        return
     print("Initializing Chrome Driver")
     with chrome_driver() as driver:
         print("Connect to example.com")
