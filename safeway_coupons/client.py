@@ -13,7 +13,12 @@ from .session import BaseSession, LoginSession
 
 
 class SafewayClient(BaseSession):
-    def __init__(self, account: Account, interactive_sign_in: bool, debug_dir: Optional[Path]) -> None:
+    def __init__(
+        self,
+        account: Account,
+        interactive_sign_in: bool,
+        debug_dir: Optional[Path],
+    ) -> None:
         self.session = LoginSession(account, interactive_sign_in, debug_dir)
         self.requests.headers.update(
             {
