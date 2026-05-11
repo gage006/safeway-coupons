@@ -55,12 +55,16 @@ Accounts come from exactly one of two sources (checked in this order; see `confi
 
 Independent of account source, `SAFEWAY_HIGHLIGHT_KEYWORDS` (comma-separated, e.g. `FREE,BOGO`) restricts the per-offer listing in the success email to coupons whose `offer_price` matches any of the keywords (case-insensitive, word-boundary regex). Read in `app.py::main` and threaded through `SafewayCoupons` → `email_clip_results`.
 
-The Docker image (`Dockerfile` + `docker/entrypoint`) wraps the CLI in cron and exposes the same env vars plus `CRON_SCHEDULE`, `SMTPHOST`, `SAFEWAY_ACCOUNTS_FILE`, `DEBUG_DIR`, `EXTRA_ARGS`.
+The Docker image (`Dockerfile` + `docker/entrypoint`) wraps the CLI in cron and exposes the same env vars plus `CRON_SCHEDULE`, `SMTPHOST`, `SAFEWAY_ACCOUNTS_FILE`, `DEBUG_DIR`, `EXTRA_ARGS`. The shipped `docker-compose.yaml` still references the upstream image (`ghcr.io/smkent/safeway-coupons:latest`); this fork publishes its own via `.github/workflows/container.yml` to `ghcr.io/gage006/safeway-coupons` with tags `:main`, `:edge` (alias for main), `:<pr-number>` for PR builds, and `:vX.Y.Z` on `v*` git tags. Swap the compose `image:` line to one of those tags to run this fork's code.
+
+## CI
+
+`.github/workflows/container.yml` runs `poetry run poe test` (lint + tests) on every push and PR, then publishes the container image when not a PR. `ci.yml` and `cd.yml` cover other gates. Because the publish step is gated on `poe test`, anything that breaks lint or tests stops images from being released.
 
 ## Conventions
 
 - Black with `line-length = 79`, isort `profile = "black"` at the same width — keep imports and wrapping consistent.
 - `disallow_untyped_defs = true` in mypy: every function (including tests) must be fully annotated.
 - Pre-commit (`.pre-commit-config.yaml`) runs black, isort, autoflake, pyupgrade, flake8 (+ bugbear/simplify/pep8-naming), bandit, and mypy. `poetry run poe lint` runs the same set.
-- HTTP tests use `responses` for mocking; `pytest-mock` for general mocking. Look at `tests/conftest.py` and `tests/utils.py` before adding fixtures.
+- HTTP tests use `responses` for mocking; `pytest-mock` for general mocking. Look at `tests/conftest.py` and `tests/utils.py` before adding fixtures. The autouse `mock_chrome_version` fixture stubs `chrome_driver.chrome_version()` so the suite runs without `/usr/bin/google-chrome` installed; `mock_undetected_chromedriver` patches `uc.Chrome`; the `login_success` fixture additionally patches `LoginSession._sign_in_success` to return `True` so tests skip the WAF/form-submission code path. `OfferList.offers` is a `dict[str, Offer]` keyed by `offer_id` — fixtures need to build it that way (see `available_offers`).
 - Selenium auth can be flaky against Safeway's WAF — when iterating on login code, prefer `--interactive-sign-in` and inspect screenshots saved under `--debug-dir` (`-D`) rather than guessing.
