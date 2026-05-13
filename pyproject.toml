@@ -19,6 +19,7 @@ requires-python = ">=3.9,<4.0"
 dynamic = [ "version" ]
 dependencies = [
     "dataclasses-json",
+    "jinja2",
     "requests",
     "selenium (>=4.10)",
     "undetected-chromedriver (>=3.5.0)",
@@ -32,6 +33,7 @@ safeway-coupons-init-chromedriver = "safeway_coupons.chrome_driver:init"
 
 [tool.poetry]
 requires-poetry = ">=2.0"
+include = ["safeway_coupons/templates/*.j2"]
 version = "0.0.0"
 
 [tool.poetry.requires-plugins]

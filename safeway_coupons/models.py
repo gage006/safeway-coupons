@@ -76,6 +76,15 @@ class Offer(Model):
     image: str
     category: Optional[str] = None
 
+    @property
+    def offer_details_url(self) -> str:
+        if self.offer_pgm == OfferType.Unknown:
+            return "https://www.safeway.com/foru/coupons-deals.html"
+        return (
+            f"https://www.safeway.com/foru/offer-details"
+            f".{self.offer_id}.{self.offer_pgm.value}.html"
+        )
+
     def __str__(self) -> str:
         return (
             f"{self.__class__.__name__} "
