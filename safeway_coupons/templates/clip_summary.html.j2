@@ -64,7 +64,7 @@ Exp {{ offer.end_date.day }} {{ offer.end_date.strftime('%b %Y') -}}
 {% for offer in expiring_soon %}
 <tr>
 <td class="thumb" style="width:68px;padding:8px 4px 8px 8px;vertical-align:top;background-color:#fffde7">
-<img src="{{ offer.image }}" width="56" height="56" alt="{{ offer.name }}"
+<img src="{{ 'cid:' + offer.offer_id if offer.offer_id in embedded_image_ids else offer.image }}" width="56" height="56" alt="{{ offer.name }}"
      style="display:block;border-radius:3px;border:0">
 </td>
 <td class="detail" style="padding:8px 8px 8px 0;vertical-align:top;background-color:#fffde7;border-bottom:1px solid #ffe082">
@@ -86,7 +86,7 @@ Exp {{ offer.end_date.day }} {{ offer.end_date.strftime('%b %Y') -}}
 {% for offer in listed_offers %}
 <tr>
 <td class="thumb card" style="width:68px;padding:8px 4px 8px 8px;vertical-align:top;background-color:#fff">
-<img src="{{ offer.image }}" width="56" height="56" alt="{{ offer.name }}"
+<img src="{{ 'cid:' + offer.offer_id if offer.offer_id in embedded_image_ids else offer.image }}" width="56" height="56" alt="{{ offer.name }}"
      style="display:block;border-radius:3px;border:0">
 </td>
 <td class="detail card" style="padding:8px 8px 8px 0;vertical-align:top;background-color:#fff;border-bottom:1px solid #f0f0f0">

@@ -46,6 +46,19 @@ class SafewayClient(BaseSession):
         except requests.exceptions.HTTPError as e:
             raise HTTPError(e, response) from e
 
+    def fetch_offer_images(self, offers: list[Offer]) -> dict[str, bytes]:
+        images: dict[str, bytes] = {}
+        for offer in offers:
+            if not offer.image:
+                continue
+            try:
+                resp = self.requests.get(offer.image, timeout=10)
+                resp.raise_for_status()
+                images[offer.offer_id] = resp.content
+            except requests.exceptions.RequestException:
+                pass
+        return images
+
     def clip(self, offer: Offer) -> None:
         request = ClipRequest.from_offer(offer)
         response: Optional[requests.Response] = None

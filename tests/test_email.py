@@ -157,6 +157,48 @@ def test_html_contains_offer_details_link(
     assert "offer-details.99.PD.html" in html_body
 
 
+def test_html_uses_cid_when_images_provided(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    offer = create_offer("42", offer_price="$2 OFF")
+    img_bytes = b"GIF89afake"
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[offer],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+        offer_images={"42": img_bytes},
+    )
+    html_body = send_mock.call_args.kwargs.get("html_body")
+    assert html_body is not None
+    assert "cid:42" in html_body
+    assert send_mock.call_args.kwargs.get("offer_images") == {"42": img_bytes}
+
+
+def test_html_falls_back_to_url_without_images(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    offer = create_offer("42", offer_price="$2 OFF")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[offer],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+    )
+    html_body = send_mock.call_args.kwargs.get("html_body")
+    assert html_body is not None
+    assert "cid:42" not in html_body
+    assert offer.image in html_body
+
+
 def test_html_respects_keyword_filter(
     mocker: pytest_mock.MockerFixture,
 ) -> None:
