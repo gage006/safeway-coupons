@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+import pytest_mock
 import responses
 
 from safeway_coupons import SafewayCoupons
@@ -21,6 +22,45 @@ def test_safeway_coupons(
     app.clip_for_account(create_account())
     assert set(clips.clipped_offer_ids) == {"1138"}
     assert not clips.failed_offer_ids
+
+
+@pytest.mark.usefixtures("login_success")
+def test_safeway_coupons_embeds_offer_images(
+    http_responses: responses.RequestsMock,
+    available_offers: list[Offer],
+    clips: ClipsTestConfig,
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    available_offers.append(create_offer("1138"))
+    http_responses.add(
+        responses.GET,
+        "https://i.imgur.com/oWSZ8YM.jpg",
+        body=b"GIF89aimagedata",
+        content_type="image/gif",
+    )
+    email_mock = mocker.patch("safeway_coupons.safeway.email_clip_results")
+    app = SafewayCoupons(sleep_level=2, max_clip_errors=1)
+    app.clip_for_account(create_account())
+    assert email_mock.call_args.kwargs["offer_images"] == {
+        "1138": b"GIF89aimagedata"
+    }
+
+
+@pytest.mark.usefixtures("login_success")
+def test_safeway_coupons_tolerates_image_fetch_failure(
+    http_responses: responses.RequestsMock,
+    available_offers: list[Offer],
+    clips: ClipsTestConfig,
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    available_offers.append(create_offer("1138"))
+    # The offer image URL is intentionally not registered, so the fetch
+    # fails; the email must still be sent without embedded images.
+    email_mock = mocker.patch("safeway_coupons.safeway.email_clip_results")
+    app = SafewayCoupons(sleep_level=2, max_clip_errors=1)
+    app.clip_for_account(create_account())
+    assert email_mock.call_args.kwargs["offer_images"] == {}
+    assert set(clips.clipped_offer_ids) == {"1138"}
 
 
 @pytest.mark.usefixtures("login_success")
