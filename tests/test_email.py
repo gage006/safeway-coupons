@@ -196,7 +196,10 @@ def test_html_falls_back_to_url_without_images(
     html_body = send_mock.call_args.kwargs.get("html_body")
     assert html_body is not None
     assert "cid:42" not in html_body
-    assert offer.image in html_body
+    assert (
+        "https://images.albertsons-media.com/is/image/ABS/test_42" in html_body
+    )
+    assert offer.image not in html_body
 
 
 def test_html_respects_keyword_filter(

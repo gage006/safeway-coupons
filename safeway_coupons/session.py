@@ -62,7 +62,6 @@ class LoginSession(BaseSession):
         self.store_id: Optional[str] = None
         self.interactive_sign_in = interactive_sign_in
         self.debug_dir: Optional[Path] = debug_dir
-        self.cookies: list[dict[str, Any]] = []
         try:
             self._login(account)
         except ExceptionWithAttachments as e:
@@ -237,7 +236,6 @@ class LoginSession(BaseSession):
                 self.store_id = session_info_cookie["info"]["J4U"]["storeId"]
             except Exception as e:
                 raise Exception("Unable to retrieve store ID") from e
-            self.cookies = driver.get_cookies()
 
     def _parse_cookie_value(self, value: str) -> Any:
         return json.loads(urllib.parse.unquote(value))

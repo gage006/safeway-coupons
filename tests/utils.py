@@ -24,7 +24,11 @@ def create_offer(offer_id: str, offer_price: str = "$99 OFF") -> Offer:
         offer_price=offer_price,
         offer_pgm=OfferType.PersonalizedDeal,
         category_type="Unit Test foods",
-        image="https://i.imgur.com/oWSZ8YM.jpg",
+        image=(
+            "https://www.safeway.com/CMS/j4u/offers/images/"
+            f"test_{offer_id}.gif"
+        ),
+        image_id=f"test_{offer_id}",
     )
 
 

@@ -31,10 +31,11 @@ def test_safeway_coupons_embeds_offer_images(
     clips: ClipsTestConfig,
     mocker: pytest_mock.MockerFixture,
 ) -> None:
-    available_offers.append(create_offer("1138"))
+    offer = create_offer("1138")
+    available_offers.append(offer)
     http_responses.add(
         responses.GET,
-        "https://i.imgur.com/oWSZ8YM.jpg",
+        offer.image_url,
         body=b"GIF89aimagedata",
         content_type="image/gif",
     )

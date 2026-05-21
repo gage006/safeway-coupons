@@ -69,14 +69,6 @@ def login_success(
         }
 
     mock_undetected_chromedriver.get_cookie.side_effect = _get_cookie
-    mock_undetected_chromedriver.get_cookies.return_value = [
-        {
-            "name": "visid_incap",
-            "value": "waf-clearance",
-            "domain": ".safeway.com",
-            "path": "/",
-        }
-    ]
     with mock.patch.object(
         LoginSession, "_sign_in_success", staticmethod(lambda driver: True)
     ):
