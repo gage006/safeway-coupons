@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from safeway_coupons.accounts import Account
 from safeway_coupons.models import Offer, OfferStatus, OfferType
@@ -19,12 +19,16 @@ def create_offer(offer_id: str, offer_price: str = "$99 OFF") -> Offer:
         status=OfferStatus.Unclipped,
         name="Test Food",
         description="Test item for unit testing",
-        start_date=datetime.now() - timedelta(days=1),
-        end_date=datetime.now() + timedelta(days=1),
+        start_date=datetime.now(timezone.utc) - timedelta(days=1),
+        end_date=datetime.now(timezone.utc) + timedelta(days=1),
         offer_price=offer_price,
         offer_pgm=OfferType.PersonalizedDeal,
         category_type="Unit Test foods",
-        image="https://i.imgur.com/oWSZ8YM.jpg",
+        image=(
+            "https://www.safeway.com/CMS/j4u/offers/images/"
+            f"test_{offer_id}.gif"
+        ),
+        image_id=f"test_{offer_id}",
     )
 
 

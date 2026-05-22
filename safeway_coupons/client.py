@@ -20,6 +20,7 @@ class SafewayClient(BaseSession):
         debug_dir: Optional[Path],
     ) -> None:
         self.session = LoginSession(account, interactive_sign_in, debug_dir)
+        self.debug_dir = debug_dir
         self.requests.headers.update(
             {
                 "Authorization": f"Bearer {self.session.access_token}",
@@ -38,6 +39,8 @@ class SafewayClient(BaseSession):
                 f"&rand={random.randrange(100000, 999999)}"
             )
             response.raise_for_status()
+            if self.debug_dir:
+                (self.debug_dir / "offers.json").write_text(response.text)
             offers_dict = OfferList.from_dict(response.json()).offers
             return list(offers_dict.values())
         except requests.exceptions.HTTPError as e:

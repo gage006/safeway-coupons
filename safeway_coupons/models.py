@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
+from urllib.parse import quote
 
 import dataclasses_json
 
@@ -75,6 +76,27 @@ class Offer(Model):
     category_type: str
     image: str
     category: Optional[str] = None
+    image_id: Optional[str] = None
+
+    @property
+    def image_url(self) -> str:
+        # The offers API's `image` URL points at the long-dead CMS host;
+        # live coupon images are on Albertsons' public Scene7 media CDN.
+        asset = self.image_id or self.image.rsplit("/", 1)[-1].split(".")[0]
+        return (
+            "https://images.albertsons-media.com/is/image/ABS/"
+            f"{quote(asset)}"
+            "?$ecom-product-card-desktop-jpg$&defaultImage=Not_Available"
+        )
+
+    @property
+    def offer_details_url(self) -> str:
+        if self.offer_pgm == OfferType.Unknown:
+            return "https://www.safeway.com/foru/coupons-deals.html"
+        return (
+            f"https://www.safeway.com/foru/offer-details"
+            f".{self.offer_id}.{self.offer_pgm.value}.html"
+        )
 
     def __str__(self) -> str:
         return (
