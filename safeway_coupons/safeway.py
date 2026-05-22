@@ -86,10 +86,6 @@ class SafewayCoupons:
                         )
 
             print(f"Clipped {len(clipped_offers)} coupons")
-            send_email = self.send_email and not self.dry_run
-            offer_images = (
-                swy.fetch_offer_images(clipped_offers) if send_email else {}
-            )
             email_clip_results(
                 self.sendmail,
                 account,
@@ -97,9 +93,8 @@ class SafewayCoupons:
                 error=None,
                 clip_errors=clip_errors,
                 debug_level=self.debug_level,
-                send_email=send_email,
+                send_email=self.send_email and not self.dry_run,
                 highlight_keywords=self.highlight_keywords,
-                offer_images=offer_images,
             )
         except Error as e:
             email_error(

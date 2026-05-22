@@ -3,11 +3,7 @@ import mimetypes
 import os
 import re
 import subprocess
-from email import encoders
 from email.message import EmailMessage
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Optional
 
@@ -60,14 +56,6 @@ def _listed_offers(
     return offers, label
 
 
-def _img_mime_subtype(data: bytes) -> str:
-    if data[:8] == b"\x89PNG\r\n\x1a\n":
-        return "png"
-    if data[:2] == b"\xff\xd8":
-        return "jpeg"
-    return "gif"
-
-
 def _render_text(report: ClipReport) -> str:
     offers, section_header = _listed_offers(report)
     by_type: dict[OfferType, list[Offer]] = collections.defaultdict(list)
@@ -89,10 +77,7 @@ def _render_text(report: ClipReport) -> str:
     return os.linesep.join(lines)
 
 
-def _render_html(
-    report: ClipReport,
-    embedded_image_ids: Optional[set[str]] = None,
-) -> str:
+def _render_html(report: ClipReport) -> str:
     listed, section_label = _listed_offers(report)
     shown = listed[:_MAX_OFFERS_IN_EMAIL]
     overflow = max(0, len(listed) - _MAX_OFFERS_IN_EMAIL)
@@ -115,7 +100,6 @@ def _render_html(
         section_label=section_label,
         by_type=by_type,
         expiring_soon=expiring,
-        embedded_image_ids=embedded_image_ids or set(),
     )
 
 
@@ -128,7 +112,6 @@ def _send_email(
     send_email: bool,
     html_body: Optional[str] = None,
     attachments: Optional[list[Path]] = None,
-    offer_images: Optional[dict[str, bytes]] = None,
 ) -> None:
     if debug_level >= 1:
         if send_email:
@@ -140,60 +123,23 @@ def _send_email(
         print("<<<<<<")
     if not send_email:
         return
-    if html_body and offer_images:
-        outer = MIMEMultipart("mixed")
-        outer["To"] = account.mail_to
-        outer["From"] = account.mail_from
-        if subject:
-            outer["Subject"] = subject
-        alt = MIMEMultipart("alternative")
-        alt.attach(MIMEText(text_body, "plain", "utf-8"))
-        related = MIMEMultipart("related")
-        related.attach(MIMEText(html_body, "html", "utf-8"))
-        for offer_id, img_bytes in offer_images.items():
-            part = MIMEBase("image", _img_mime_subtype(img_bytes))
-            part.set_payload(img_bytes)
-            encoders.encode_base64(part)
-            part.add_header("Content-ID", f"<{offer_id}>")
-            part.add_header("Content-Disposition", "inline")
-            related.attach(part)
-        alt.attach(related)
-        outer.attach(alt)
-        for attachment in attachments or []:
-            mt = mimetypes.guess_type(attachment.name)[0]
-            main, sub = (
-                mt.split("/", 1) if mt else ("application", "octet-stream")
-            )
-            file_part = MIMEBase(main, sub)
-            file_part.set_payload(attachment.read_bytes())
-            encoders.encode_base64(file_part)
-            file_part.add_header(
-                "Content-Disposition",
-                "attachment",
-                filename=attachment.name,
-            )
-            outer.attach(file_part)
-        msg: EmailMessage = outer  # type: ignore[assignment]
-    else:
-        msg = EmailMessage()
-        msg["To"] = account.mail_to
-        msg["From"] = account.mail_from
-        if subject:
-            msg["Subject"] = subject
-        msg.set_content(text_body)
-        if html_body:
-            msg.add_alternative(html_body, subtype="html")
-        for attachment in attachments or []:
-            mt = mimetypes.guess_type(attachment.name)[0]
-            main, sub = (
-                mt.split("/", 1) if mt else ("application", "octet-stream")
-            )
-            msg.add_attachment(
-                attachment.read_bytes(),
-                filename=attachment.name,
-                maintype=main,
-                subtype=sub,
-            )
+    msg = EmailMessage()
+    msg["To"] = account.mail_to
+    msg["From"] = account.mail_from
+    if subject:
+        msg["Subject"] = subject
+    msg.set_content(text_body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+    for attachment in attachments or []:
+        mt = mimetypes.guess_type(attachment.name)[0]
+        main, sub = mt.split("/", 1) if mt else ("application", "octet-stream")
+        msg.add_attachment(
+            attachment.read_bytes(),
+            filename=attachment.name,
+            maintype=main,
+            subtype=sub,
+        )
     p = subprocess.Popen(
         sendmail + ["-f", account.mail_to, "-t"], stdin=subprocess.PIPE
     )
@@ -209,7 +155,6 @@ def email_clip_results(
     debug_level: int,
     send_email: bool,
     highlight_keywords: Optional[list[str]] = None,
-    offer_images: Optional[dict[str, bytes]] = None,
 ) -> None:
     report = ClipReport(
         account=account,
@@ -220,10 +165,7 @@ def email_clip_results(
     )
     subject = f"Safeway coupons: {len(offers)} clipped"
     text_body = _render_text(report)
-    html_body = _render_html(
-        report,
-        embedded_image_ids=set(offer_images.keys()) if offer_images else None,
-    )
+    html_body = _render_html(report)
     _send_email(
         sendmail,
         account,
@@ -232,7 +174,6 @@ def email_clip_results(
         debug_level,
         send_email,
         html_body=html_body,
-        offer_images=offer_images,
     )
 
 

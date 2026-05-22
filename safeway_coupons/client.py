@@ -46,41 +46,6 @@ class SafewayClient(BaseSession):
         except requests.exceptions.HTTPError as e:
             raise HTTPError(e, response) from e
 
-    def fetch_offer_images(self, offers: list[Offer]) -> dict[str, bytes]:
-        candidates = [o for o in offers if o.image]
-        if not candidates:
-            return {}
-        images: dict[str, bytes] = {}
-        consecutive_failures = 0
-        first_error: Optional[str] = None
-        # Coupon images are served from a public CDN, so fetch them with a
-        # plain session rather than the bearer-token API session.
-        with requests.Session() as image_session:
-            image_session.headers.update(
-                {
-                    "User-Agent": self.USER_AGENT,
-                    "Accept": "image/avif,image/webp,image/*,*/*;q=0.8",
-                }
-            )
-            for offer in candidates:
-                try:
-                    resp = image_session.get(offer.image_url, timeout=10)
-                    resp.raise_for_status()
-                    images[offer.offer_id] = resp.content
-                    consecutive_failures = 0
-                except requests.exceptions.RequestException as e:
-                    consecutive_failures += 1
-                    if first_error is None:
-                        first_error = str(e)
-                    if not images and consecutive_failures >= 5:
-                        break
-        print(
-            f"Fetched {len(images)}/{len(candidates)} coupon images for email"
-        )
-        if first_error and len(images) < len(candidates):
-            print(f"  Example image fetch failure: {first_error}")
-        return images
-
     def clip(self, offer: Offer) -> None:
         request = ClipRequest.from_offer(offer)
         response: Optional[requests.Response] = None
