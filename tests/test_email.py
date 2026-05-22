@@ -199,3 +199,61 @@ def test_html_respects_keyword_filter(
     assert html_body is not None
     assert free_offer.offer_details_url in html_body
     assert paid_offer.offer_details_url not in html_body
+
+
+def test_html_disables_ios_data_detectors(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[create_offer("1", offer_price="$2 OFF")],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+    )
+    html_body = send_mock.call_args.kwargs.get("html_body")
+    assert html_body is not None
+    assert 'name="format-detection"' in html_body
+    assert "a[x-apple-data-detectors]" in html_body
+
+
+def test_html_includes_preheader(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[
+            create_offer("1", offer_price="$2 OFF"),
+            create_offer("2", offer_price="FREE"),
+        ],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+    )
+    html_body = send_mock.call_args.kwargs.get("html_body")
+    assert html_body is not None
+    assert "2 coupons clipped" in html_body
+
+
+def test_html_uses_larger_thumbnail(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[create_offer("1", offer_price="$2 OFF")],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+    )
+    html_body = send_mock.call_args.kwargs.get("html_body")
+    assert html_body is not None
+    assert 'width="64" height="64"' in html_body
