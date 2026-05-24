@@ -77,6 +77,16 @@ def _render_text(report: ClipReport) -> str:
     return os.linesep.join(lines)
 
 
+def _preheader(report: ClipReport) -> str:
+    count = len(report.clipped)
+    plural = "s" if count != 1 else ""
+    parts = [f"{count} coupon{plural} clipped"]
+    if report.clipped:
+        first = report.clipped[0]
+        parts.append(f"{first.offer_price} {first.name}")
+    return " - ".join(parts)
+
+
 def _render_html(report: ClipReport) -> str:
     listed, section_label = _listed_offers(report)
     shown = listed[:_MAX_OFFERS_IN_EMAIL]
@@ -95,6 +105,7 @@ def _render_html(report: ClipReport) -> str:
     return template.render(
         account=report.account,
         clipped=report.clipped,
+        preheader=_preheader(report),
         listed_offers=shown,
         overflow=overflow,
         section_label=section_label,
