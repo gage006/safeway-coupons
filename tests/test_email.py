@@ -1,9 +1,42 @@
 import pytest_mock
 
 from safeway_coupons import email as email_mod
-from safeway_coupons.email import email_clip_results
+from safeway_coupons.email import _send_email, email_clip_results
 
 from .utils import create_account, create_offer
+
+
+def test_from_header_includes_display_name(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    popen = mocker.patch.object(email_mod.subprocess, "Popen")
+    _send_email(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(mail_from_name="Safeway Coupons"),
+        subject="Test",
+        text_body="body",
+        debug_level=0,
+        send_email=True,
+    )
+    sent = popen.return_value.communicate.call_args.args[0]
+    assert b"From: Safeway Coupons <ness@onett.example>" in sent
+
+
+def test_from_header_bare_address_without_name(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    popen = mocker.patch.object(email_mod.subprocess, "Popen")
+    _send_email(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        subject="Test",
+        text_body="body",
+        debug_level=0,
+        send_email=True,
+    )
+    sent = popen.return_value.communicate.call_args.args[0]
+    assert b"From: ness@onett.example" in sent
+    assert b"<ness@onett.example>" not in sent
 
 
 def test_lists_all_offers_when_no_keywords(

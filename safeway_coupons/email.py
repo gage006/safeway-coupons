@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 from email.message import EmailMessage
+from email.utils import formataddr
 from pathlib import Path
 from typing import Optional
 
@@ -136,7 +137,11 @@ def _send_email(
         return
     msg = EmailMessage()
     msg["To"] = account.mail_to
-    msg["From"] = account.mail_from
+    msg["From"] = (
+        formataddr((account.mail_from_name, account.mail_from))
+        if account.mail_from_name
+        else account.mail_from
+    )
     if subject:
         msg["Subject"] = subject
     msg.set_content(text_body)

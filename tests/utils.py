@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from safeway_coupons.accounts import Account
 from safeway_coupons.models import Offer, OfferStatus, OfferType
@@ -32,10 +33,11 @@ def create_offer(offer_id: str, offer_price: str = "$99 OFF") -> Offer:
     )
 
 
-def create_account() -> Account:
+def create_account(mail_from_name: Optional[str] = None) -> Account:
     return Account(
         username="ness@onett.example",
         password="pk_fire",
         mail_from="ness@onett.example",
         mail_to="ness@onett.example",
+        mail_from_name=mail_from_name,
     )

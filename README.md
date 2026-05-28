@@ -122,6 +122,8 @@ A single Safeway account can be configured with environment variables:
 * `SAFEWAY_ACCOUNT_USERNAME`: Account email address (required)
 * `SAFEWAY_ACCOUNT_PASSWORD`: Account password (required)
 * `SAFEWAY_ACCOUNT_MAIL_FROM`: Sender address for email summary
+* `SAFEWAY_ACCOUNT_MAIL_FROM_NAME`: Optional display name for the `From:`
+  header of the email summary (e.g. `Safeway Coupons`)
 * `SAFEWAY_ACCOUNT_MAIL_TO`: Recipient address for email summary
 * `SAFEWAY_HIGHLIGHT_KEYWORDS`: Optional comma-separated keywords (e.g.
   `FREE` or `FREE,BOGO`). When set, the per-offer listing in the
@@ -135,11 +137,12 @@ Multiple Safeway accounts can be provided in an ini-style config file, with a
 section for each account. For example:
 
 ```ini
-email_sender = sender@example.com   ; optional
+email_sender = sender@example.com       ; optional
+email_sender_name = Safeway Coupons     ; optional
 
-[safeway.account@example.com]       ; required
-password = 12345                    ; required
-notify = your.email@example.com     ; optional
+[safeway.account@example.com]           ; required
+password = 12345                        ; required
+notify = your.email@example.com         ; optional
 ```
 
 Provide the path to your config file using the `-c` or `--accounts-config`
@@ -148,6 +151,11 @@ option:
 ```console
 safeway-coupons -c path/to/config/file
 ```
+
+The display name shown in the summary email's `From:` header can be set per
+account (via `SAFEWAY_ACCOUNT_MAIL_FROM_NAME` or `email_sender_name`) or
+globally with the `--mail-from-name` command-line option. A per-account value
+takes precedence over the command-line option.
 
 ## Development
 

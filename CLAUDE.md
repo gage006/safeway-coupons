@@ -40,7 +40,7 @@ Module map (`safeway_coupons/`):
 - `session.py` — `BaseSession` / `LoginSession` (requests session + Selenium-driven login)
 - `chrome_driver.py` — headless Chrome bootstrap; also exposed as the `safeway-coupons-init-chromedriver` console script
 - `config.py` — env-var vs INI-file account loading
-- `accounts.py` — `Account` dataclass (username, password, mail_to, mail_from)
+- `accounts.py` — `Account` dataclass (username, password, mail_to, mail_from, optional mail_from_name)
 - `models.py` / `methods.py` — `Offer`, `OfferList`, `OfferStatus`, `OfferType`, `ClipRequest`, `ClipResponse` (all `dataclasses-json`)
 - `email.py` — summary/error email composition + sendmail invocation
 - `errors.py` — exception hierarchy: `Error`, `AuthenticationFailure`, `ClipError`, `HTTPError`, `TooManyClipErrors`
@@ -50,8 +50,10 @@ Module map (`safeway_coupons/`):
 
 Accounts come from exactly one of two sources (checked in this order; see `config.py` and the README):
 
-- **Env vars (single account):** `SAFEWAY_ACCOUNT_USERNAME` (required), `SAFEWAY_ACCOUNT_PASSWORD` (required), `SAFEWAY_ACCOUNT_MAIL_FROM`, `SAFEWAY_ACCOUNT_MAIL_TO`.
-- **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`.
+- **Env vars (single account):** `SAFEWAY_ACCOUNT_USERNAME` (required), `SAFEWAY_ACCOUNT_PASSWORD` (required), `SAFEWAY_ACCOUNT_MAIL_FROM`, `SAFEWAY_ACCOUNT_MAIL_FROM_NAME`, `SAFEWAY_ACCOUNT_MAIL_TO`.
+- **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...` and `email_sender_name = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`.
+
+The summary email's `From:` display name (`Account.mail_from_name`) is optional. It can be set per account (`SAFEWAY_ACCOUNT_MAIL_FROM_NAME` env var or `email_sender_name` INI key) or globally via the `--mail-from-name` CLI flag, threaded through `Config.load_accounts(...)`; a per-account value wins over the CLI flag. When set, `email.py` builds the `From:` header with `email.utils.formataddr`.
 
 Independent of account source, `SAFEWAY_HIGHLIGHT_KEYWORDS` (comma-separated, e.g. `FREE,BOGO`) restricts the per-offer listing in the success email to coupons whose `offer_price` matches any of the keywords (case-insensitive, word-boundary regex). Read in `app.py::main` and threaded through `SafewayCoupons` → `email_clip_results`.
 
