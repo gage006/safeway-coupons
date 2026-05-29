@@ -44,13 +44,36 @@ def _keyword_pattern(
     )
 
 
+def _offer_matches(
+    offer: Offer,
+    price_pattern: Optional[re.Pattern[str]],
+    name_pattern: Optional[re.Pattern[str]],
+) -> bool:
+    if price_pattern and price_pattern.search(offer.offer_price):
+        return True
+    if name_pattern and (
+        name_pattern.search(offer.name)
+        or name_pattern.search(offer.description)
+    ):
+        return True
+    return False
+
+
 def _listed_offers(
     report: ClipReport,
 ) -> tuple[list[Offer], str]:
-    pattern = _keyword_pattern(report.highlight_keywords)
-    if pattern:
-        offers = [o for o in report.clipped if pattern.search(o.offer_price)]
-        label = f"Coupons matching {', '.join(report.highlight_keywords)}"
+    price_pattern = _keyword_pattern(report.highlight_keywords_price)
+    name_pattern = _keyword_pattern(report.highlight_keywords_name)
+    if price_pattern or name_pattern:
+        offers = [
+            o
+            for o in report.clipped
+            if _offer_matches(o, price_pattern, name_pattern)
+        ]
+        all_kws = (
+            report.highlight_keywords_price + report.highlight_keywords_name
+        )
+        label = f"Coupons matching {', '.join(all_kws)}"
     else:
         offers = list(report.clipped)
         label = "Clipped coupons"
@@ -97,10 +120,15 @@ def _render_html(report: ClipReport) -> str:
     for offer in report.clipped:
         by_type[offer.offer_pgm].append(offer)
 
-    pattern = _keyword_pattern(report.highlight_keywords)
+    price_pattern = _keyword_pattern(report.highlight_keywords_price)
+    name_pattern = _keyword_pattern(report.highlight_keywords_name)
     expiring = report.expiring_soon
-    if pattern:
-        expiring = [o for o in expiring if pattern.search(o.offer_price)]
+    if price_pattern or name_pattern:
+        expiring = [
+            o
+            for o in expiring
+            if _offer_matches(o, price_pattern, name_pattern)
+        ]
 
     template = _get_jinja_env().get_template("clip_summary.html.j2")
     return template.render(
@@ -170,14 +198,16 @@ def email_clip_results(
     clip_errors: Optional[list[ClipError]],
     debug_level: int,
     send_email: bool,
-    highlight_keywords: Optional[list[str]] = None,
+    highlight_keywords_price: Optional[list[str]] = None,
+    highlight_keywords_name: Optional[list[str]] = None,
 ) -> None:
     report = ClipReport(
         account=account,
         clipped=offers,
         clip_errors=clip_errors or [],
         error=error,
-        highlight_keywords=highlight_keywords or [],
+        highlight_keywords_price=highlight_keywords_price or [],
+        highlight_keywords_name=highlight_keywords_name or [],
     )
     subject = f"Safeway coupons: {len(offers)} clipped"
     text_body = _render_text(report)
