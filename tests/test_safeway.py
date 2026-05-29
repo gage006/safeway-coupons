@@ -1,9 +1,11 @@
 from unittest import mock
 
 import pytest
+import pytest_mock
 import responses
 
 from safeway_coupons import SafewayCoupons
+from safeway_coupons import safeway as safeway_mod
 from safeway_coupons.errors import TooManyClipErrors
 from safeway_coupons.models import Offer
 
@@ -21,6 +23,27 @@ def test_safeway_coupons(
     app.clip_for_account(create_account())
     assert set(clips.clipped_offer_ids) == {"1138"}
     assert not clips.failed_offer_ids
+
+
+@pytest.mark.usefixtures("login_success")
+def test_clip_forwards_account_keywords(
+    http_responses: responses.RequestsMock,
+    available_offers: list[Offer],
+    clips: ClipsTestConfig,
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    email_mock = mocker.patch.object(safeway_mod, "email_clip_results")
+    available_offers.append(create_offer("1138"))
+    app = SafewayCoupons(send_email=False, sleep_level=2, max_clip_errors=1)
+    app.clip_for_account(
+        create_account(
+            highlight_keywords_price=["FREE"],
+            highlight_keywords_name=["Pepsi"],
+        )
+    )
+    kwargs = email_mock.call_args.kwargs
+    assert kwargs["highlight_keywords_price"] == ["FREE"]
+    assert kwargs["highlight_keywords_name"] == ["Pepsi"]
 
 
 @pytest.mark.usefixtures("login_success")

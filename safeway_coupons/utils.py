@@ -1,9 +1,15 @@
 import random
 import time
-from typing import TypeVar
+from typing import Optional, TypeVar
 from collections.abc import Generator, Iterable
 
 T = TypeVar("T")
+
+
+def parse_keywords(value: Optional[str]) -> list[str]:
+    if not value:
+        return []
+    return [keyword.strip() for keyword in value.split(",") if keyword.strip()]
 
 
 def yield_delay(
