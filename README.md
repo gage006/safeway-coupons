@@ -137,10 +137,6 @@ per-offer listing. When both are set, a coupon is shown if it matches
 *either* filter (OR logic). When neither is set, all clipped coupons are
 listed.
 
-**Note:** The former `SAFEWAY_HIGHLIGHT_KEYWORDS` (which matched the price
-string) has been renamed to `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE`. The bare
-`SAFEWAY_HIGHLIGHT_KEYWORDS` now matches coupon names and descriptions.
-
 #### With config file
 
 Multiple Safeway accounts can be provided in an ini-style config file, with a
