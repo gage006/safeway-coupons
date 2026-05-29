@@ -74,6 +74,15 @@ def _parse_args() -> argparse.Namespace:
         help="Don't send results email",
     )
     arg_parser.add_argument(
+        "--mail-from-name",
+        dest="mail_from_name",
+        metavar="name",
+        help=(
+            "Display name to use in the From: header of summary emails. "
+            "Overridden by a per-account sender name if one is configured."
+        ),
+    )
+    arg_parser.add_argument(
         "-p",
         "--pretend",
         "--dry-run",
@@ -111,7 +120,10 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    accounts = Config.load_accounts(config_file=args.accounts_config)
+    accounts = Config.load_accounts(
+        config_file=args.accounts_config,
+        mail_from_name=args.mail_from_name,
+    )
     if not accounts:
         print("Error: No Safeway account(s) configured", file=sys.stderr)
         sys.exit(1)
