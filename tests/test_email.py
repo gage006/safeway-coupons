@@ -78,7 +78,7 @@ def test_filters_to_keyword_match(
         clip_errors=None,
         debug_level=0,
         send_email=False,
-        highlight_keywords=["FREE"],
+        highlight_keywords_price=["FREE"],
     )
     body = send_mock.call_args.args[3]
     assert free_one.offer_details_url in body
@@ -100,7 +100,7 @@ def test_keyword_match_is_case_insensitive(
         clip_errors=None,
         debug_level=0,
         send_email=False,
-        highlight_keywords=["FREE"],
+        highlight_keywords_price=["FREE"],
     )
     body = send_mock.call_args.args[3]
     assert offer.offer_details_url in body
@@ -119,7 +119,7 @@ def test_keyword_match_is_word_bounded(
         clip_errors=None,
         debug_level=0,
         send_email=False,
-        highlight_keywords=["FREE"],
+        highlight_keywords_price=["FREE"],
     )
     body = send_mock.call_args.args[3]
     assert offer.offer_details_url not in body
@@ -142,7 +142,7 @@ def test_subject_unchanged_with_filter(
         clip_errors=None,
         debug_level=0,
         send_email=False,
-        highlight_keywords=["FREE"],
+        highlight_keywords_price=["FREE"],
     )
     subject = send_mock.call_args.args[2]
     assert subject == "Safeway coupons: 3 clipped"
@@ -226,7 +226,7 @@ def test_html_respects_keyword_filter(
         clip_errors=None,
         debug_level=0,
         send_email=False,
-        highlight_keywords=["FREE"],
+        highlight_keywords_price=["FREE"],
     )
     html_body = send_mock.call_args.kwargs.get("html_body")
     assert html_body is not None
@@ -290,3 +290,114 @@ def test_html_uses_larger_thumbnail(
     html_body = send_mock.call_args.kwargs.get("html_body")
     assert html_body is not None
     assert 'width="64" height="64"' in html_body
+
+
+def test_name_keyword_matches_name_field(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    pepsi = create_offer("1", offer_price="$1 OFF", name="Pepsi 2L Bottles")
+    cola = create_offer("2", offer_price="$1 OFF", name="Cola Zero 12pk")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[pepsi, cola],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+        highlight_keywords_name=["Pepsi"],
+    )
+    body = send_mock.call_args.args[3]
+    assert pepsi.offer_details_url in body
+    assert cola.offer_details_url not in body
+    assert "Coupons matching Pepsi:" in body
+
+
+def test_name_keyword_matches_description_field(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    bogo = create_offer(
+        "1", offer_price="$1 OFF", description="BOGO deal this week"
+    )
+    other = create_offer("2", offer_price="$1 OFF", description="Save more!")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[bogo, other],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+        highlight_keywords_name=["BOGO"],
+    )
+    body = send_mock.call_args.args[3]
+    assert bogo.offer_details_url in body
+    assert other.offer_details_url not in body
+
+
+def test_name_keyword_is_word_bounded(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    offer = create_offer("1", offer_price="$1 OFF", name="Freeloader Chips")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[offer],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+        highlight_keywords_name=["Free"],
+    )
+    body = send_mock.call_args.args[3]
+    assert offer.offer_details_url not in body
+
+
+def test_both_keywords_use_or_logic(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    price_match = create_offer("1", offer_price="FREE", name="Cola")
+    name_match = create_offer("2", offer_price="$1 OFF", name="Pepsi Zero")
+    no_match = create_offer("3", offer_price="$3 OFF", name="Water")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[price_match, name_match, no_match],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+        highlight_keywords_price=["FREE"],
+        highlight_keywords_name=["Pepsi"],
+    )
+    body = send_mock.call_args.args[3]
+    assert price_match.offer_details_url in body
+    assert name_match.offer_details_url in body
+    assert no_match.offer_details_url not in body
+    assert "Coupons matching FREE, Pepsi:" in body
+
+
+def test_html_respects_name_keyword_filter(
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    send_mock = mocker.patch.object(email_mod, "_send_email")
+    pepsi = create_offer("1", offer_price="$1 OFF", name="Pepsi 2L")
+    water = create_offer("2", offer_price="$1 OFF", name="Spring Water")
+    email_clip_results(
+        sendmail=["/usr/sbin/sendmail"],
+        account=create_account(),
+        offers=[pepsi, water],
+        error=None,
+        clip_errors=None,
+        debug_level=0,
+        send_email=False,
+        highlight_keywords_name=["Pepsi"],
+    )
+    html_body = send_mock.call_args.kwargs.get("html_body")
+    assert html_body is not None
+    assert pepsi.offer_details_url in html_body
+    assert water.offer_details_url not in html_body

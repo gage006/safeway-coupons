@@ -14,12 +14,17 @@ class ClipsTestConfig:
     failed_offer_ids: list[str] = field(default_factory=list)
 
 
-def create_offer(offer_id: str, offer_price: str = "$99 OFF") -> Offer:
+def create_offer(
+    offer_id: str,
+    offer_price: str = "$99 OFF",
+    name: str = "Test Food",
+    description: str = "Test item for unit testing",
+) -> Offer:
     return Offer(
         offer_id=offer_id,
         status=OfferStatus.Unclipped,
-        name="Test Food",
-        description="Test item for unit testing",
+        name=name,
+        description=description,
         start_date=datetime.now(timezone.utc) - timedelta(days=1),
         end_date=datetime.now(timezone.utc) + timedelta(days=1),
         offer_price=offer_price,

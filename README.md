@@ -125,11 +125,21 @@ A single Safeway account can be configured with environment variables:
 * `SAFEWAY_ACCOUNT_MAIL_FROM_NAME`: Optional display name for the `From:`
   header of the email summary (e.g. `Safeway Coupons`)
 * `SAFEWAY_ACCOUNT_MAIL_TO`: Recipient address for email summary
-* `SAFEWAY_HIGHLIGHT_KEYWORDS`: Optional comma-separated keywords (e.g.
-  `FREE` or `FREE,BOGO`). When set, the per-offer listing in the
-  summary email only includes coupons whose price string matches one
-  of the keywords (case-insensitive, whole-word match). When unset,
-  all clipped coupons are listed.
+* `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE`: Optional comma-separated keywords matched
+  against each coupon's price string (e.g. `FREE` or `FREE,BOGO`).
+  Case-insensitive, whole-word match.
+* `SAFEWAY_HIGHLIGHT_KEYWORDS`: Optional comma-separated keywords matched
+  against each coupon's name or description (e.g. `Pepsi` or `Pepsi,Coke`).
+  Case-insensitive, whole-word match.
+
+When either (or both) env vars are set, only matching coupons appear in the
+per-offer listing. When both are set, a coupon is shown if it matches
+*either* filter (OR logic). When neither is set, all clipped coupons are
+listed.
+
+**Note:** The former `SAFEWAY_HIGHLIGHT_KEYWORDS` (which matched the price
+string) has been renamed to `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE`. The bare
+`SAFEWAY_HIGHLIGHT_KEYWORDS` now matches coupon names and descriptions.
 
 #### With config file
 

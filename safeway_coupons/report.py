@@ -15,7 +15,8 @@ class ClipReport:
     clipped: list[Offer]
     clip_errors: list[ClipError] = field(default_factory=list)
     error: Optional[Error] = None
-    highlight_keywords: list[str] = field(default_factory=list)
+    highlight_keywords_price: list[str] = field(default_factory=list)
+    highlight_keywords_name: list[str] = field(default_factory=list)
 
     @property
     def expiring_soon(self) -> list[Offer]:

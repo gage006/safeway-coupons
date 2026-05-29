@@ -55,7 +55,12 @@ Accounts come from exactly one of two sources (checked in this order; see `confi
 
 The summary email's `From:` display name (`Account.mail_from_name`) is optional. It can be set per account (`SAFEWAY_ACCOUNT_MAIL_FROM_NAME` env var or `email_sender_name` INI key) or globally via the `--mail-from-name` CLI flag, threaded through `Config.load_accounts(...)`; a per-account value wins over the CLI flag. When set, `email.py` builds the `From:` header with `email.utils.formataddr`.
 
-Independent of account source, `SAFEWAY_HIGHLIGHT_KEYWORDS` (comma-separated, e.g. `FREE,BOGO`) restricts the per-offer listing in the success email to coupons whose `offer_price` matches any of the keywords (case-insensitive, word-boundary regex). Read in `app.py::main` and threaded through `SafewayCoupons` → `email_clip_results`.
+Independent of account source, two optional keyword env vars filter the per-offer listing in the success email (case-insensitive, word-boundary regex). Both are read in `app.py::main` and threaded through `SafewayCoupons` → `email_clip_results` → `ClipReport`:
+
+- `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` (comma-separated, e.g. `FREE,BOGO`) — matches `offer_price`
+- `SAFEWAY_HIGHLIGHT_KEYWORDS` (comma-separated, e.g. `Pepsi,Coke`) — matches `offer.name` or `offer.description`
+
+When both are set, OR-logic applies. When neither is set, all clipped coupons are listed.
 
 The Docker image (`Dockerfile` + `docker/entrypoint`) wraps the CLI in cron and exposes the same env vars plus `CRON_SCHEDULE`, `SMTPHOST`, `SAFEWAY_ACCOUNTS_FILE`, `DEBUG_DIR`, `EXTRA_ARGS`. The shipped `docker-compose.yaml` still references the upstream image (`ghcr.io/smkent/safeway-coupons:latest`); this fork publishes its own via `.github/workflows/container.yml` to `ghcr.io/gage006/safeway-coupons` with tags `:main`, `:edge` (alias for main), `:<pr-number>` for PR builds, and `:vX.Y.Z` on `v*` git tags. Swap the compose `image:` line to one of those tags to run this fork's code.
 
