@@ -57,6 +57,7 @@ def test_app_error(
             [],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -73,6 +74,7 @@ def test_app_error(
             ["-d", "-d", "-SS"],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=2,
                 debug_dir=Path("."),
@@ -89,6 +91,7 @@ def test_app_error(
             ["--sendmail", "/my/special/sendmail"],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/my/special/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -111,6 +114,7 @@ def test_app_error(
             ],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=[
                     "/my/special/sendmail",
                     "--do-the-thing",
@@ -131,6 +135,7 @@ def test_app_error(
             ["-n"],
             dict(
                 send_email=False,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -144,9 +149,27 @@ def test_app_error(
             id="No email",
         ),
         pytest.param(
+            ["-z"],
+            dict(
+                send_email=True,
+                no_email_on_zero=True,
+                sendmail=["/usr/sbin/sendmail"],
+                debug_level=0,
+                debug_dir=Path("."),
+                sleep_level=0,
+                dry_run=False,
+                max_clip_count=0,
+                interactive_sign_in=False,
+                highlight_keywords_price=[],
+                highlight_keywords_name=[],
+            ),
+            id="No email on zero",
+        ),
+        pytest.param(
             ["-p", "--max-clip", "42"],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -180,3 +203,36 @@ def test_args(
     cast(mock.MagicMock, app.SafewayCoupons).assert_called_once_with(
         **expected_args
     )
+
+
+@pytest.mark.parametrize(
+    ["env_value", "expected"],
+    [
+        ("1", True),
+        ("true", True),
+        ("YES", True),
+        ("on", True),
+        ("0", False),
+        ("false", False),
+        ("", False),
+    ],
+)
+def test_no_email_on_zero_env(
+    mocker: pytest_mock.MockerFixture,
+    env_value: str,
+    expected: bool,
+) -> None:
+    mocker.patch.object(app, "SafewayCoupons")
+    mocker.patch.object(sys, "argv", ["safeway-coupons"])
+    mocker.patch.object(
+        os,
+        "environ",
+        {
+            "SAFEWAY_ACCOUNT_USERNAME": "ness@onett.example",
+            "SAFEWAY_ACCOUNT_PASSWORD": "pk_fire",
+            "NO_EMAIL_ON_ZERO": env_value,
+        },
+    )
+    main()
+    _, kwargs = cast(mock.MagicMock, app.SafewayCoupons).call_args
+    assert kwargs["no_email_on_zero"] is expected
