@@ -78,7 +78,11 @@ def _parse_args() -> argparse.Namespace:
         "--no-email-on-zero",
         dest="no_email_on_zero",
         action="store_true",
-        help="Don't send results email when zero coupons are clipped",
+        help=(
+            "Don't send results email when zero coupons are clipped. May "
+            "also be enabled by setting the NO_EMAIL_ON_ZERO environment "
+            "variable to a truthy value (1, true, yes, on)."
+        ),
     )
     arg_parser.add_argument(
         "--mail-from-name",
@@ -148,9 +152,13 @@ def main() -> None:
         for k in os.environ.get("SAFEWAY_HIGHLIGHT_KEYWORDS", "").split(",")
         if k.strip()
     ]
+    no_email_on_zero = args.no_email_on_zero or (
+        os.environ.get("NO_EMAIL_ON_ZERO", "").strip().lower()
+        in ("1", "true", "yes", "on")
+    )
     sc = SafewayCoupons(
         send_email=args.send_email,
-        no_email_on_zero=args.no_email_on_zero,
+        no_email_on_zero=no_email_on_zero,
         sendmail=args.sendmail,
         debug_level=args.debug_level,
         debug_dir=Path(args.debug_dir) if args.debug_dir else None,

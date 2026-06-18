@@ -137,6 +137,12 @@ per-offer listing. When both are set, a coupon is shown if it matches
 *either* filter (OR logic). When neither is set, all clipped coupons are
 listed.
 
+The following environment variable is independent of account source:
+
+* `NO_EMAIL_ON_ZERO`: Optional. Set to a truthy value (`1`, `true`, `yes`,
+  `on`) to skip sending the results email when zero coupons are clipped.
+  Equivalent to the `-z`/`--no-email-on-zero` command-line option.
+
 #### With config file
 
 Multiple Safeway accounts can be provided in an ini-style config file, with a

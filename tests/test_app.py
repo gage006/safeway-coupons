@@ -203,3 +203,36 @@ def test_args(
     cast(mock.MagicMock, app.SafewayCoupons).assert_called_once_with(
         **expected_args
     )
+
+
+@pytest.mark.parametrize(
+    ["env_value", "expected"],
+    [
+        ("1", True),
+        ("true", True),
+        ("YES", True),
+        ("on", True),
+        ("0", False),
+        ("false", False),
+        ("", False),
+    ],
+)
+def test_no_email_on_zero_env(
+    mocker: pytest_mock.MockerFixture,
+    env_value: str,
+    expected: bool,
+) -> None:
+    mocker.patch.object(app, "SafewayCoupons")
+    mocker.patch.object(sys, "argv", ["safeway-coupons"])
+    mocker.patch.object(
+        os,
+        "environ",
+        {
+            "SAFEWAY_ACCOUNT_USERNAME": "ness@onett.example",
+            "SAFEWAY_ACCOUNT_PASSWORD": "pk_fire",
+            "NO_EMAIL_ON_ZERO": env_value,
+        },
+    )
+    main()
+    _, kwargs = cast(mock.MagicMock, app.SafewayCoupons).call_args
+    assert kwargs["no_email_on_zero"] is expected
