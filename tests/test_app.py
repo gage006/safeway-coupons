@@ -57,6 +57,7 @@ def test_app_error(
             [],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -73,6 +74,7 @@ def test_app_error(
             ["-d", "-d", "-SS"],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=2,
                 debug_dir=Path("."),
@@ -89,6 +91,7 @@ def test_app_error(
             ["--sendmail", "/my/special/sendmail"],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/my/special/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -111,6 +114,7 @@ def test_app_error(
             ],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=[
                     "/my/special/sendmail",
                     "--do-the-thing",
@@ -131,6 +135,7 @@ def test_app_error(
             ["-n"],
             dict(
                 send_email=False,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),
@@ -144,9 +149,27 @@ def test_app_error(
             id="No email",
         ),
         pytest.param(
+            ["-z"],
+            dict(
+                send_email=True,
+                no_email_on_zero=True,
+                sendmail=["/usr/sbin/sendmail"],
+                debug_level=0,
+                debug_dir=Path("."),
+                sleep_level=0,
+                dry_run=False,
+                max_clip_count=0,
+                interactive_sign_in=False,
+                highlight_keywords_price=[],
+                highlight_keywords_name=[],
+            ),
+            id="No email on zero",
+        ),
+        pytest.param(
             ["-p", "--max-clip", "42"],
             dict(
                 send_email=True,
+                no_email_on_zero=False,
                 sendmail=["/usr/sbin/sendmail"],
                 debug_level=0,
                 debug_dir=Path("."),

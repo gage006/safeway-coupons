@@ -15,6 +15,7 @@ class SafewayCoupons:
     def __init__(
         self,
         send_email: bool = True,
+        no_email_on_zero: bool = False,
         sendmail: Optional[list[str]] = None,
         debug_level: int = 0,
         debug_dir: Optional[Path] = None,
@@ -27,6 +28,7 @@ class SafewayCoupons:
         highlight_keywords_name: Optional[list[str]] = None,
     ) -> None:
         self.send_email = send_email
+        self.no_email_on_zero = no_email_on_zero
         self.sendmail = sendmail or ["/usr/sbin/sendmail"]
         self.debug_level = debug_level
         self.debug_dir = debug_dir
@@ -88,6 +90,9 @@ class SafewayCoupons:
                         )
 
             print(f"Clipped {len(clipped_offers)} coupons")
+            send_email = self.send_email and not self.dry_run
+            if self.no_email_on_zero and not clipped_offers:
+                send_email = False
             email_clip_results(
                 self.sendmail,
                 account,
@@ -95,7 +100,7 @@ class SafewayCoupons:
                 error=None,
                 clip_errors=clip_errors,
                 debug_level=self.debug_level,
-                send_email=self.send_email and not self.dry_run,
+                send_email=send_email,
                 highlight_keywords_price=self.highlight_keywords_price,
                 highlight_keywords_name=self.highlight_keywords_name,
             )
