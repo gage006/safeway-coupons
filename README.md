@@ -137,11 +137,18 @@ per-offer listing. When both are set, a coupon is shown if it matches
 *either* filter (OR logic). When neither is set, all clipped coupons are
 listed.
 
-The following environment variable is independent of account source:
+The following settings are independent of account source. Each can be set
+with an environment variable or, equivalently, with a key in the config file
+(see below). When both are provided, the environment variable wins for the
+keyword settings, while `NO_EMAIL_ON_ZERO` is enabled if *any* source (env
+var, config file, or command-line flag) enables it.
 
-* `NO_EMAIL_ON_ZERO`: Optional. Set to a truthy value (`1`, `true`, `yes`,
-  `on`) to skip sending the results email when zero coupons are clipped.
-  Equivalent to the `-z`/`--no-email-on-zero` command-line option.
+* `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` (config key: `highlight_keywords_price`)
+* `SAFEWAY_HIGHLIGHT_KEYWORDS` (config key: `highlight_keywords`)
+* `NO_EMAIL_ON_ZERO` (config key: `no_email_on_zero`): Optional. Set to a
+  truthy value (`1`, `true`, `yes`, `on`) to skip sending the results email
+  when zero coupons are clipped. Equivalent to the `-z`/`--no-email-on-zero`
+  command-line option.
 
 #### With config file
 
@@ -151,11 +158,20 @@ section for each account. For example:
 ```ini
 email_sender = sender@example.com       ; optional
 email_sender_name = Safeway Coupons     ; optional
+highlight_keywords_price = FREE,BOGO    ; optional
+highlight_keywords = Pepsi,Coke         ; optional
+no_email_on_zero = true                 ; optional
 
 [safeway.account@example.com]           ; required
 password = 12345                        ; required
 notify = your.email@example.com         ; optional
 ```
+
+The top-level `highlight_keywords_price`, `highlight_keywords`, and
+`no_email_on_zero` keys are the config-file equivalents of the
+`SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE`, `SAFEWAY_HIGHLIGHT_KEYWORDS`, and
+`NO_EMAIL_ON_ZERO` environment variables described above, and behave
+identically. They may also be placed in a `[_global]` section.
 
 Provide the path to your config file using the `-c` or `--accounts-config`
 option:
