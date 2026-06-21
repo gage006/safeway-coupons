@@ -91,7 +91,19 @@ def _render_text(report: ClipReport) -> str:
     ]
     for offer_type, type_offers in by_type.items():
         lines.append(f"    {offer_type.name}: {len(type_offers)} coupons")
-    if offers:
+    price_pattern = _keyword_pattern(report.highlight_keywords_price)
+    name_pattern = _keyword_pattern(report.highlight_keywords_name)
+    if price_pattern or name_pattern:
+        lines += ["", f"{section_header}:"]
+        if offers:
+            for offer in offers:
+                lines.append(
+                    f"[{offer.offer_price}] {offer.name}"
+                    f" — {offer.offer_details_url}"
+                )
+        else:
+            lines.append("  (no matches)")
+    elif offers:
         lines += ["", f"{section_header}:"]
         for offer in offers:
             lines.append(
@@ -104,11 +116,14 @@ def _render_text(report: ClipReport) -> str:
 def _preheader(report: ClipReport) -> str:
     count = len(report.clipped)
     plural = "s" if count != 1 else ""
-    parts = [f"{count} coupon{plural} clipped"]
-    if report.clipped:
-        first = report.clipped[0]
-        parts.append(f"{first.offer_price} {first.name}")
-    return " - ".join(parts)
+    base = f"{count} coupon{plural} clipped"
+    all_kws = report.highlight_keywords_price + report.highlight_keywords_name
+    if not all_kws:
+        return base
+    listed, _ = _listed_offers(report)
+    kw_str = ", ".join(all_kws)
+    match_count = len(listed)
+    return f"{base} · {match_count} matching {kw_str}"
 
 
 def _render_html(report: ClipReport) -> str:
