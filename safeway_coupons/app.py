@@ -1,5 +1,4 @@
 import argparse
-import os
 import shlex
 import sys
 import traceback
@@ -140,22 +139,8 @@ def main() -> None:
         sys.exit(1)
     if args.debug_level >= 2:
         HTTPConnection.debuglevel = 1
-    highlight_keywords_price = [
-        k.strip()
-        for k in os.environ.get("SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE", "").split(
-            ","
-        )
-        if k.strip()
-    ]
-    highlight_keywords_name = [
-        k.strip()
-        for k in os.environ.get("SAFEWAY_HIGHLIGHT_KEYWORDS", "").split(",")
-        if k.strip()
-    ]
-    no_email_on_zero = args.no_email_on_zero or (
-        os.environ.get("NO_EMAIL_ON_ZERO", "").strip().lower()
-        in ("1", "true", "yes", "on")
-    )
+    global_config = Config.load_global_config(config_file=args.accounts_config)
+    no_email_on_zero = args.no_email_on_zero or global_config.no_email_on_zero
     sc = SafewayCoupons(
         send_email=args.send_email,
         no_email_on_zero=no_email_on_zero,
@@ -166,8 +151,8 @@ def main() -> None:
         dry_run=args.dry_run,
         max_clip_count=args.max_clip_count,
         interactive_sign_in=args.interactive_sign_in,
-        highlight_keywords_price=highlight_keywords_price,
-        highlight_keywords_name=highlight_keywords_name,
+        highlight_keywords_price=global_config.highlight_keywords_price,
+        highlight_keywords_name=global_config.highlight_keywords_name,
     )
     errors = 0
     try:
