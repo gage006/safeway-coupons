@@ -151,10 +151,14 @@ section for each account. For example:
 ```ini
 email_sender = sender@example.com       ; optional
 email_sender_name = Safeway Coupons     ; optional
+highlight_keywords_price = FREE,BOGO    ; optional, default for all accounts
+highlight_keywords = Pepsi,Coke         ; optional, default for all accounts
 
 [safeway.account@example.com]           ; required
 password = 12345                        ; required
 notify = your.email@example.com         ; optional
+highlight_keywords_price = FREE         ; optional, overrides default above
+highlight_keywords = Cheese             ; optional, overrides default above
 ```
 
 Provide the path to your config file using the `-c` or `--accounts-config`
@@ -168,6 +172,15 @@ The display name shown in the summary email's `From:` header can be set per
 account (via `SAFEWAY_ACCOUNT_MAIL_FROM_NAME` or `email_sender_name`) or
 globally with the `--mail-from-name` command-line option. A per-account value
 takes precedence over the command-line option.
+
+The coupon-highlight keywords described above can also be set in the config
+file using the `highlight_keywords_price` and `highlight_keywords` keys (same
+comma-separated format and matching behavior). Keys placed above the first
+account section apply to every account; keys inside a `[safeway.<account>]`
+section override that default for the account. When a key is absent from the
+config file, the matching `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` /
+`SAFEWAY_HIGHLIGHT_KEYWORDS` environment variable (if set) is used as the
+default.
 
 ## Development
 

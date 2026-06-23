@@ -51,16 +51,16 @@ Module map (`safeway_coupons/`):
 Accounts come from exactly one of two sources (checked in this order; see `config.py` and the README):
 
 - **Env vars (single account):** `SAFEWAY_ACCOUNT_USERNAME` (required), `SAFEWAY_ACCOUNT_PASSWORD` (required), `SAFEWAY_ACCOUNT_MAIL_FROM`, `SAFEWAY_ACCOUNT_MAIL_FROM_NAME`, `SAFEWAY_ACCOUNT_MAIL_TO`.
-- **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...` and `email_sender_name = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`.
+- **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...`, `email_sender_name = ...`, `highlight_keywords_price = ...`, and `highlight_keywords = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`, `highlight_keywords_price = ...`, and `highlight_keywords = ...`.
 
-The summary email's `From:` display name (`Account.mail_from_name`) is optional. It can be set per account (`SAFEWAY_ACCOUNT_MAIL_FROM_NAME` env var or `email_sender_name` INI key) or globally via the `--mail-from-name` CLI flag, threaded through `Config.load_accounts(...)`; a per-account value wins over the CLI flag. When set, `email.py` builds the `From:` header with `email.utils.formataddr`.
+The summary email's `From:` display name (`Account.mail_from_name`) is optional. It can be set per account (`SAFEWAY_ACCOUNT_MAIL_FROM_NAME` env var or top-level `email_sender_name` INI key) or globally via the `--mail-from-name` CLI flag, threaded through `Config.load_accounts(...)`; a per-account value wins over the CLI flag. When set, `email.py` builds the `From:` header with `email.utils.formataddr`.
 
-Independent of account source, two optional keyword env vars filter the per-offer listing in the success email (case-insensitive, word-boundary regex). Both are read in `app.py::main` and threaded through `SafewayCoupons` → `email_clip_results` → `ClipReport`:
+Two optional keyword filters control the per-offer listing in the success email (case-insensitive, word-boundary regex). They live on the `Account` dataclass (`highlight_keywords_price`, `highlight_keywords_name`), are resolved in `config.py`, and are threaded through `SafewayCoupons.clip_for_account` → `email_clip_results` → `ClipReport`:
 
-- `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` (comma-separated, e.g. `FREE,BOGO`) — matches `offer_price`
-- `SAFEWAY_HIGHLIGHT_KEYWORDS` (comma-separated, e.g. `Pepsi,Coke`) — matches `offer.name` or `offer.description`
+- `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` env var / `highlight_keywords_price` INI key (comma-separated, e.g. `FREE,BOGO`) — matches `offer_price`
+- `SAFEWAY_HIGHLIGHT_KEYWORDS` env var / `highlight_keywords` INI key (comma-separated, e.g. `Pepsi,Coke`) — matches `offer.name` or `offer.description`
 
-When both are set, OR-logic applies. When neither is set, all clipped coupons are listed.
+Resolution precedence per account (most specific first): per-`[safeway.<email>]`-section INI key → top-level INI key → env-var value → empty. In the env-var account path the env vars are the only source. When both price and name keywords are set, OR-logic applies. When neither is set for an account, all of its clipped coupons are listed.
 
 Also independent of account source, `NO_EMAIL_ON_ZERO` (truthy values `1`/`true`/`yes`/`on`) is read in `app.py::main` and OR'd with the `-z`/`--no-email-on-zero` CLI flag into `SafewayCoupons.no_email_on_zero`; when set, `clip_for_account` suppresses the success email if `clipped_offers` is empty.
 
