@@ -54,7 +54,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         if: ${{ env.ENABLE_COVERAGE == 'true' }}
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           files: ./.pytest_coverage.xml
 
 concurrency:
