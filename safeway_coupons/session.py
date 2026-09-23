@@ -13,9 +13,12 @@ import undetected_chromedriver as uc  # type: ignore
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
+    TimeoutException,
     WebDriverException,
 )
 from selenium.webdriver.remote.webdriver import By
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.wait import WebDriverWait
 
 from .accounts import Account
 from .chrome_driver import chrome_driver
@@ -110,6 +113,28 @@ class LoginSession(BaseSession):
         return True
 
     @staticmethod
+    def _ready_element(
+        driver: uc.Chrome, by: str, value: str
+    ) -> Optional[WebElement]:
+        # Responsive pages may retain hidden copies of the login form.
+        for element in driver.find_elements(by, value):
+            try:
+                if element.is_displayed() and element.is_enabled():
+                    return element
+            except StaleElementReferenceException:
+                continue
+        return None
+
+    @classmethod
+    def _wait_for_element(
+        cls, driver: uc.Chrome, by: str, value: str, timeout: int = 30
+    ) -> WebElement:
+        return WebDriverWait(driver, timeout).until(
+            lambda browser: cls._ready_element(browser, by, value),
+            message=f"Waiting for visible, enabled login control: {value}",
+        )
+
+    @staticmethod
     def _get_code_from_human(timeout: int = 290, interval: int = 10) -> str:
         print(
             "Wait for the SMS OTP code and enter it here in the terminal "
@@ -125,14 +150,16 @@ class LoginSession(BaseSession):
 
     def _login(self, account: Account) -> None:
         with self._chrome_driver() as driver:
-            driver.implicitly_wait(10)
+            driver.implicitly_wait(0)
             url = "https://www.safeway.com/account/sign-in.html"
             print("Connect to safeway.com/account/sign-in.html")
             driver.get(url)
             try:
-                button = driver.find_element(
+                button = self._wait_for_element(
+                    driver,
                     By.XPATH,
                     "//button [contains(text(), 'Necessary Only')]",
+                    timeout=5,
                 )
                 if button:
                     print("Decline cookie prompt")
@@ -141,7 +168,7 @@ class LoginSession(BaseSession):
                         "Return to safeway.com after declining cookie prompt"
                     )
                     driver.get(url)
-            except NoSuchElementException:
+            except TimeoutException:
                 print("Skipping cookie prompt which is not present")
             time.sleep(2)
 
@@ -151,73 +178,84 @@ class LoginSession(BaseSession):
                 print("Populate Sign In form")
 
                 # Support new and old sign in flows
-                if self._element_exists(driver, "label-email"):
-                    driver.find_element(By.ID, "label-email").send_keys(
-                        account.username
-                    )
-                    driver.find_element(By.ID, "label-password").send_keys(
-                        account.password
-                    )
+                username = self._wait_for_element(
+                    driver,
+                    By.CSS_SELECTOR,
+                    "input#label-email, input#enterUsername",
+                )
+                username.send_keys(account.username)
+                if username.get_attribute("id") == "label-email":
+                    self._wait_for_element(
+                        driver, By.ID, "label-password"
+                    ).send_keys(account.password)
                     time.sleep(0.5)
                     print("Click Sign In button")
-                    driver.find_element("id", "btnSignIn").click()
+                    self._wait_for_element(driver, By.ID, "btnSignIn").click()
                 else:
-                    driver.find_element(By.ID, "enterUsername").send_keys(
-                        account.username
-                    )
                     time.sleep(0.5)
                     print("Click Sign in with password button")
-                    driver.find_element(
+                    self._wait_for_element(
+                        driver,
                         By.XPATH,
                         '//button[contains(text(), "Sign in with password")]',
                     ).click()
                     time.sleep(2)
                     print("Populate password")
-                    driver.find_element(By.ID, "password").send_keys(
-                        account.password
-                    )
+                    self._wait_for_element(
+                        driver, By.ID, "password"
+                    ).send_keys(account.password)
                     time.sleep(0.5)
                     print("Click Sign In button")
-                    driver.find_element(
-                        By.XPATH, '//button[contains(text(), "Sign In")]'
+                    self._wait_for_element(
+                        driver,
+                        By.XPATH,
+                        '//button[contains(text(), "Sign In")]',
                     ).click()
-                time.sleep(2)
+                WebDriverWait(driver, 30).until(
+                    lambda browser: self._sign_in_success(browser)
+                    or self._ready_element(browser, By.ID, "verifyOptionForm"),
+                    message="Waiting for sign-in result or device verification",
+                )
 
                 # Check for verify device
                 print("Check for verify device required")
-                if self._element_exists(driver, "verifyOptionForm"):
+                if self._ready_element(driver, By.ID, "verifyOptionForm"):
                     if not self.interactive_sign_in:
                         raise Exception(
                             "Interactive sign-in required, but not enabled."
                             " Run with --interactive-sign-in"
                         )
                     print("Click Text code")
-                    driver.find_element(
-                        By.XPATH, '//span[contains(text(), "Text code to")]'
+                    self._wait_for_element(
+                        driver,
+                        By.XPATH,
+                        '//span[contains(text(), "Text code to")]',
                     ).click()
                     time.sleep(0.5)
                     print("Click Continue button")
-                    driver.find_element(
-                        By.XPATH, '//button[contains(text(), "Continue")]'
+                    self._wait_for_element(
+                        driver,
+                        By.XPATH,
+                        '//button[contains(text(), "Continue")]',
                     ).click()
 
                     code = self._get_code_from_human()
-                    print("Typing code " + code + " in to field")
-                    driver.find_element(
-                        By.XPATH, '//input[@formcontrolname="otpCode"]'
+                    print("Typing verification code")
+                    self._wait_for_element(
+                        driver, By.XPATH, '//input[@formcontrolname="otpCode"]'
                     ).send_keys(code)
                     time.sleep(0.5)
-                    driver.find_element(
-                        By.XPATH, '//button[contains(text(), "Sign In")]'
+                    self._wait_for_element(
+                        driver,
+                        By.XPATH,
+                        '//button[contains(text(), "Sign In")]',
                     ).click()
-                    time.sleep(2)
-                    if self._element_exists(driver, "verifyOptionForm"):
-                        raise Exception("Code not accepted")
 
                 # Check for sign in success
                 print("Wait for signed in landing page to load")
-                driver.find_element(
-                    By.XPATH, '//span [contains(@class, "user-greeting")]'
+                WebDriverWait(driver, 30).until(
+                    self._sign_in_success,
+                    message="Waiting for signed-in user greeting",
                 )
                 if not self._sign_in_success(driver):
                     raise Exception(
