@@ -117,7 +117,8 @@ class LoginSession(BaseSession):
         driver: uc.Chrome, by: str, value: str
     ) -> Optional[WebElement]:
         # Responsive pages may retain hidden copies of the login form.
-        for element in driver.find_elements(by, value):
+        elements: list[WebElement] = driver.find_elements(by, value)
+        for element in elements:
             try:
                 if element.is_displayed() and element.is_enabled():
                     return element
@@ -129,10 +130,12 @@ class LoginSession(BaseSession):
     def _wait_for_element(
         cls, driver: uc.Chrome, by: str, value: str, timeout: int = 30
     ) -> WebElement:
-        return WebDriverWait(driver, timeout).until(
+        element = WebDriverWait(driver, timeout).until(
             lambda browser: cls._ready_element(browser, by, value),
             message=f"Waiting for visible, enabled login control: {value}",
         )
+        assert element is not None
+        return element
 
     @staticmethod
     def _get_code_from_human(timeout: int = 290, interval: int = 10) -> str:
@@ -214,7 +217,9 @@ class LoginSession(BaseSession):
                 WebDriverWait(driver, 30).until(
                     lambda browser: self._sign_in_success(browser)
                     or self._ready_element(browser, By.ID, "verifyOptionForm"),
-                    message="Waiting for sign-in result or device verification",
+                    message=(
+                        "Waiting for sign-in result or device verification"
+                    ),
                 )
 
                 # Check for verify device
