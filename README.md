@@ -153,6 +153,7 @@ email_sender = sender@example.com       ; optional
 email_sender_name = Safeway Coupons     ; optional
 highlight_keywords_price = FREE,BOGO    ; optional, default for all accounts
 highlight_keywords = Pepsi,Coke         ; optional, default for all accounts
+no_email_on_zero = true                 ; optional
 
 [safeway.account@example.com]           ; required
 password = 12345                        ; required
@@ -160,6 +161,11 @@ notify = your.email@example.com         ; optional
 highlight_keywords_price = FREE         ; optional, overrides default above
 highlight_keywords = Cheese             ; optional, overrides default above
 ```
+
+The top-level `no_email_on_zero` key (also accepted in `[_global]`) enables
+the same behavior as `NO_EMAIL_ON_ZERO` or `--no-email-on-zero`. Any of
+these sources can enable it. Keyword settings retain the per-account,
+top-level, then environment precedence described above.
 
 Provide the path to your config file using the `-c` or `--accounts-config`
 option:

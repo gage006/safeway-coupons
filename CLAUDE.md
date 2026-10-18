@@ -62,7 +62,7 @@ Two optional keyword filters control the per-offer listing in the success email 
 
 Resolution precedence per account (most specific first): per-`[safeway.<email>]`-section INI key → top-level INI key → env-var value → empty. In the env-var account path the env vars are the only source. When both price and name keywords are set, OR-logic applies. When neither is set for an account, all of its clipped coupons are listed.
 
-Also independent of account source, `NO_EMAIL_ON_ZERO` (truthy values `1`/`true`/`yes`/`on`) is read in `app.py::main` and OR'd with the `-z`/`--no-email-on-zero` CLI flag into `SafewayCoupons.no_email_on_zero`; when set, `clip_for_account` suppresses the success email if `clipped_offers` is empty.
+Also independent of account source, `NO_EMAIL_ON_ZERO` (truthy values `1`/`true`/`yes`/`on`) and the top-level/`[_global]` INI key `no_email_on_zero` are resolved by `Config.load_global_config` and OR'd with the `-z`/`--no-email-on-zero` CLI flag into `SafewayCoupons.no_email_on_zero`; when set, `clip_for_account` suppresses the success email if `clipped_offers` is empty.
 
 The Docker image (`Dockerfile` + `docker/entrypoint`) wraps the CLI in cron and exposes the same env vars plus `CRON_SCHEDULE`, `SMTPHOST`, `SAFEWAY_ACCOUNTS_FILE`, `DEBUG_DIR`, `EXTRA_ARGS`. The shipped `docker-compose.yaml` still references the upstream image (`ghcr.io/smkent/safeway-coupons:latest`); this fork publishes its own via `.github/workflows/container.yml` to `ghcr.io/gage006/safeway-coupons` with tags `:main`, `:edge` (alias for main), `:<pr-number>` for PR builds, and `:vX.Y.Z` on `v*` git tags. Swap the compose `image:` line to one of those tags to run this fork's code.
 

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 import pytest_mock
 
 from safeway_coupons.config import Config
@@ -194,3 +195,41 @@ def test_config_highlight_keywords_env_default(
     assert accounts["safeway.two@example.com"].highlight_keywords_price == [
         "BOGO"
     ]
+
+
+@pytest.mark.parametrize(
+    ["ini_value", "env_value", "expected"],
+    [
+        ("false", None, False),
+        ("true", None, True),
+        ("false", "1", True),
+        ("true", "0", True),
+        (None, "yes", True),
+        (None, None, False),
+    ],
+)
+def test_global_config_no_email_on_zero_precedence(
+    mocker: pytest_mock.MockerFixture,
+    tmp_path: Path,
+    ini_value: str,
+    env_value: str,
+    expected: bool,
+) -> None:
+    mocker.patch.object(
+        os,
+        "environ",
+        {} if env_value is None else {"NO_EMAIL_ON_ZERO": env_value},
+    )
+    lines = ["[safeway.account@example.com]", "password = 12345"]
+    if ini_value is not None:
+        lines.insert(0, f"no_email_on_zero = {ini_value}")
+    cfg = tmp_path / "accounts"
+    cfg.write_text("\n".join(lines) + "\n")
+    gc = Config.load_global_config(config_file=str(cfg))
+    assert gc.no_email_on_zero is expected
+
+
+def test_global_config_explicit_section(tmp_path: Path) -> None:
+    cfg = tmp_path / "accounts"
+    cfg.write_text("[_global]\nno_email_on_zero = yes\n")
+    assert Config.load_global_config(str(cfg)).no_email_on_zero is True

@@ -1,5 +1,4 @@
 import argparse
-import os
 import shlex
 import sys
 import traceback
@@ -140,10 +139,8 @@ def main() -> None:
         sys.exit(1)
     if args.debug_level >= 2:
         HTTPConnection.debuglevel = 1
-    no_email_on_zero = args.no_email_on_zero or (
-        os.environ.get("NO_EMAIL_ON_ZERO", "").strip().lower()
-        in ("1", "true", "yes", "on")
-    )
+    global_config = Config.load_global_config(config_file=args.accounts_config)
+    no_email_on_zero = args.no_email_on_zero or global_config.no_email_on_zero
     sc = SafewayCoupons(
         send_email=args.send_email,
         no_email_on_zero=no_email_on_zero,

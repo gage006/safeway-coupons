@@ -1,10 +1,22 @@
 import configparser
 import itertools
 import os
+from dataclasses import dataclass
 from typing import Optional
 
 from .accounts import Account
 from .utils import parse_keywords
+
+TRUE_VALUES = ("1", "true", "yes", "on")
+
+
+@dataclass
+class GlobalConfig:
+    no_email_on_zero: bool = False
+
+
+def _is_truthy(value: Optional[str]) -> bool:
+    return value is not None and value.strip().lower() in TRUE_VALUES
 
 
 class Config:
@@ -73,9 +85,7 @@ class Config:
         highlight_keywords_price: Optional[list[str]] = None,
         highlight_keywords_name: Optional[list[str]] = None,
     ) -> list[Account]:
-        config = configparser.ConfigParser()
-        with open(config_file) as f:
-            config.read_file(itertools.chain(["[_no_section]"], f))
+        config = cls._read_config_file(config_file)
         accounts: list[Account] = []
         mail_from = None
         mail_from_name_cfg = None
@@ -128,3 +138,39 @@ class Config:
                 )
             )
         return accounts
+
+    @classmethod
+    def load_global_config(
+        cls, config_file: Optional[str] = None
+    ) -> GlobalConfig:
+        ini = (
+            cls._load_global_from_config(config_file)
+            if config_file
+            else GlobalConfig()
+        )
+        return GlobalConfig(
+            no_email_on_zero=(
+                _is_truthy(os.environ.get("NO_EMAIL_ON_ZERO"))
+                or ini.no_email_on_zero
+            ),
+        )
+
+    @classmethod
+    def _load_global_from_config(cls, config_file: str) -> GlobalConfig:
+        config = cls._read_config_file(config_file)
+        result = GlobalConfig()
+        for section in ("_no_section", "_global"):
+            if not config.has_section(section):
+                continue
+            if config.has_option(section, "no_email_on_zero"):
+                result.no_email_on_zero = _is_truthy(
+                    config.get(section, "no_email_on_zero")
+                )
+        return result
+
+    @staticmethod
+    def _read_config_file(config_file: str) -> configparser.ConfigParser:
+        config = configparser.ConfigParser()
+        with open(config_file) as f:
+            config.read_file(itertools.chain(["[_no_section]"], f))
+        return config
