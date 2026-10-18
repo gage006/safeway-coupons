@@ -38,11 +38,17 @@ def create_offer(
     )
 
 
-def create_account(mail_from_name: Optional[str] = None) -> Account:
+def create_account(
+    mail_from_name: Optional[str] = None,
+    highlight_keywords_price: Optional[list[str]] = None,
+    highlight_keywords_name: Optional[list[str]] = None,
+) -> Account:
     return Account(
         username="ness@onett.example",
         password="pk_fire",
         mail_from="ness@onett.example",
         mail_to="ness@onett.example",
         mail_from_name=mail_from_name,
+        highlight_keywords_price=highlight_keywords_price or [],
+        highlight_keywords_name=highlight_keywords_name or [],
     )

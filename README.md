@@ -137,18 +137,11 @@ per-offer listing. When both are set, a coupon is shown if it matches
 *either* filter (OR logic). When neither is set, all clipped coupons are
 listed.
 
-The following settings are independent of account source. Each can be set
-with an environment variable or, equivalently, with a key in the config file
-(see below). When both are provided, the environment variable wins for the
-keyword settings, while `NO_EMAIL_ON_ZERO` is enabled if *any* source (env
-var, config file, or command-line flag) enables it.
+The following environment variable is independent of account source:
 
-* `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` (config key: `highlight_keywords_price`)
-* `SAFEWAY_HIGHLIGHT_KEYWORDS` (config key: `highlight_keywords`)
-* `NO_EMAIL_ON_ZERO` (config key: `no_email_on_zero`): Optional. Set to a
-  truthy value (`1`, `true`, `yes`, `on`) to skip sending the results email
-  when zero coupons are clipped. Equivalent to the `-z`/`--no-email-on-zero`
-  command-line option.
+* `NO_EMAIL_ON_ZERO`: Optional. Set to a truthy value (`1`, `true`, `yes`,
+  `on`) to skip sending the results email when zero coupons are clipped.
+  Equivalent to the `-z`/`--no-email-on-zero` command-line option.
 
 #### With config file
 
@@ -158,20 +151,21 @@ section for each account. For example:
 ```ini
 email_sender = sender@example.com       ; optional
 email_sender_name = Safeway Coupons     ; optional
-highlight_keywords_price = FREE,BOGO    ; optional
-highlight_keywords = Pepsi,Coke         ; optional
+highlight_keywords_price = FREE,BOGO    ; optional, default for all accounts
+highlight_keywords = Pepsi,Coke         ; optional, default for all accounts
 no_email_on_zero = true                 ; optional
 
 [safeway.account@example.com]           ; required
 password = 12345                        ; required
 notify = your.email@example.com         ; optional
+highlight_keywords_price = FREE         ; optional, overrides default above
+highlight_keywords = Cheese             ; optional, overrides default above
 ```
 
-The top-level `highlight_keywords_price`, `highlight_keywords`, and
-`no_email_on_zero` keys are the config-file equivalents of the
-`SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE`, `SAFEWAY_HIGHLIGHT_KEYWORDS`, and
-`NO_EMAIL_ON_ZERO` environment variables described above, and behave
-identically. They may also be placed in a `[_global]` section.
+The top-level `no_email_on_zero` key (also accepted in `[_global]`) enables
+the same behavior as `NO_EMAIL_ON_ZERO` or `--no-email-on-zero`. Any of
+these sources can enable it. Keyword settings retain the per-account,
+top-level, then environment precedence described above.
 
 Provide the path to your config file using the `-c` or `--accounts-config`
 option:
@@ -184,6 +178,15 @@ The display name shown in the summary email's `From:` header can be set per
 account (via `SAFEWAY_ACCOUNT_MAIL_FROM_NAME` or `email_sender_name`) or
 globally with the `--mail-from-name` command-line option. A per-account value
 takes precedence over the command-line option.
+
+The coupon-highlight keywords described above can also be set in the config
+file using the `highlight_keywords_price` and `highlight_keywords` keys (same
+comma-separated format and matching behavior). Keys placed above the first
+account section apply to every account; keys inside a `[safeway.<account>]`
+section override that default for the account. When a key is absent from the
+config file, the matching `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` /
+`SAFEWAY_HIGHLIGHT_KEYWORDS` environment variable (if set) is used as the
+default.
 
 ## Development
 

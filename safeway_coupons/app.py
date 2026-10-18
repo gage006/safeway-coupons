@@ -151,8 +151,6 @@ def main() -> None:
         dry_run=args.dry_run,
         max_clip_count=args.max_clip_count,
         interactive_sign_in=args.interactive_sign_in,
-        highlight_keywords_price=global_config.highlight_keywords_price,
-        highlight_keywords_name=global_config.highlight_keywords_name,
     )
     errors = 0
     try:

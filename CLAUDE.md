@@ -51,17 +51,18 @@ Module map (`safeway_coupons/`):
 Accounts come from exactly one of two sources (checked in this order; see `config.py` and the README):
 
 - **Env vars (single account):** `SAFEWAY_ACCOUNT_USERNAME` (required), `SAFEWAY_ACCOUNT_PASSWORD` (required), `SAFEWAY_ACCOUNT_MAIL_FROM`, `SAFEWAY_ACCOUNT_MAIL_FROM_NAME`, `SAFEWAY_ACCOUNT_MAIL_TO`.
-- **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...` and `email_sender_name = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`.
+- **INI file (one or more accounts):** passed via `-c/--accounts-config`. Optional top-level `email_sender = ...`, `email_sender_name = ...`, `highlight_keywords_price = ...`, and `highlight_keywords = ...`; each `[safeway.<email>]` section needs `password = ...` and may set `notify = ...`, `highlight_keywords_price = ...`, and `highlight_keywords = ...`.
 
-The summary email's `From:` display name (`Account.mail_from_name`) is optional. It can be set per account (`SAFEWAY_ACCOUNT_MAIL_FROM_NAME` env var or `email_sender_name` INI key) or globally via the `--mail-from-name` CLI flag, threaded through `Config.load_accounts(...)`; a per-account value wins over the CLI flag. When set, `email.py` builds the `From:` header with `email.utils.formataddr`.
+The summary email's `From:` display name (`Account.mail_from_name`) is optional. It can be set per account (`SAFEWAY_ACCOUNT_MAIL_FROM_NAME` env var or top-level `email_sender_name` INI key) or globally via the `--mail-from-name` CLI flag, threaded through `Config.load_accounts(...)`; a per-account value wins over the CLI flag. When set, `email.py` builds the `From:` header with `email.utils.formataddr`.
 
-Independent of account source, three optional run-wide settings are resolved by `Config.load_global_config(config_file)` (`config.py`), which returns a `GlobalConfig` dataclass. Each setting reads from an env var **or** a top-level/`[_global]` INI key (the INI file is parsed via the shared `Config._read_config_file` helper). `app.py::main` calls `load_global_config`, ORs `no_email_on_zero` with the `-z`/`--no-email-on-zero` CLI flag, and threads the values through `SafewayCoupons` → `email_clip_results` → `ClipReport`:
+Two optional keyword filters control the per-offer listing in the success email (case-insensitive, word-boundary regex). They live on the `Account` dataclass (`highlight_keywords_price`, `highlight_keywords_name`), are resolved in `config.py`, and are threaded through `SafewayCoupons.clip_for_account` → `email_clip_results` → `ClipReport`:
 
-- `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` / INI `highlight_keywords_price` (comma-separated, e.g. `FREE,BOGO`) — matches `offer_price`
-- `SAFEWAY_HIGHLIGHT_KEYWORDS` / INI `highlight_keywords` (comma-separated, e.g. `Pepsi,Coke`) — matches `offer.name` or `offer.description`
-- `NO_EMAIL_ON_ZERO` / INI `no_email_on_zero` (truthy values `1`/`true`/`yes`/`on`) — when set, `clip_for_account` suppresses the success email if `clipped_offers` is empty
+- `SAFEWAY_HIGHLIGHT_KEYWORDS_PRICE` env var / `highlight_keywords_price` INI key (comma-separated, e.g. `FREE,BOGO`) — matches `offer_price`
+- `SAFEWAY_HIGHLIGHT_KEYWORDS` env var / `highlight_keywords` INI key (comma-separated, e.g. `Pepsi,Coke`) — matches `offer.name` or `offer.description`
 
-Precedence: for the keyword lists, a non-empty env var wins over the INI key; `no_email_on_zero` is OR'd across env var, INI key, and the CLI flag (any source enables it). For the keyword filters, when both are set OR-logic applies to which coupons are listed, and when neither is set all clipped coupons are listed.
+Resolution precedence per account (most specific first): per-`[safeway.<email>]`-section INI key → top-level INI key → env-var value → empty. In the env-var account path the env vars are the only source. When both price and name keywords are set, OR-logic applies. When neither is set for an account, all of its clipped coupons are listed.
+
+Also independent of account source, `NO_EMAIL_ON_ZERO` (truthy values `1`/`true`/`yes`/`on`) and the top-level/`[_global]` INI key `no_email_on_zero` are resolved by `Config.load_global_config` and OR'd with the `-z`/`--no-email-on-zero` CLI flag into `SafewayCoupons.no_email_on_zero`; when set, `clip_for_account` suppresses the success email if `clipped_offers` is empty.
 
 The Docker image (`Dockerfile` + `docker/entrypoint`) wraps the CLI in cron and exposes the same env vars plus `CRON_SCHEDULE`, `SMTPHOST`, `SAFEWAY_ACCOUNTS_FILE`, `DEBUG_DIR`, `EXTRA_ARGS`. The shipped `docker-compose.yaml` still references the upstream image (`ghcr.io/smkent/safeway-coupons:latest`); this fork publishes its own via `.github/workflows/container.yml` to `ghcr.io/gage006/safeway-coupons` with tags `:main`, `:edge` (alias for main), `:<pr-number>` for PR builds, and `:vX.Y.Z` on `v*` git tags. Swap the compose `image:` line to one of those tags to run this fork's code.
 
