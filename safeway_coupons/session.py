@@ -137,6 +137,52 @@ class LoginSession(BaseSession):
         assert element is not None
         return element
 
+    @classmethod
+    def _wait_for_username(cls, driver: uc.Chrome) -> WebElement:
+        # The sign-in URL can land on the storefront. Open its account
+        # control (and, if present, the menu's sign-in link) before waiting
+        # for the form. Never toggle the same control repeatedly.
+        clicked: list[WebElement] = []
+        sign_in = (
+            "//*[self::a or self::button or @role='button' or "
+            "(self::span and contains(@class, 'user-greeting') and "
+            "not(ancestor::*[self::a or self::button or @role='button']))]"
+            "[translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', "
+            "'abcdefghijklmnopqrstuvwxyz') = 'sign in' or "
+            "translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', "
+            "'abcdefghijklmnopqrstuvwxyz') = 'sign in / up']"
+        )
+
+        def find_username(browser: uc.Chrome) -> Optional[WebElement]:
+            username = cls._ready_element(
+                browser,
+                By.CSS_SELECTOR,
+                "input#label-email, input#enterUsername",
+            )
+            if username is not None:
+                return username
+            if len(clicked) < 2:
+                for control in browser.find_elements(By.XPATH, sign_in):
+                    try:
+                        if (
+                            control not in clicked
+                            and control.is_displayed()
+                            and control.is_enabled()
+                        ):
+                            control.click()
+                            clicked.append(control)
+                            break
+                    except StaleElementReferenceException:
+                        continue
+            return None
+
+        username = WebDriverWait(driver, 30).until(
+            find_username,
+            message="Waiting for sign-in form after opening Sign in",
+        )
+        assert username is not None
+        return username
+
     @staticmethod
     def _get_code_from_human(timeout: int = 290, interval: int = 10) -> str:
         print(
@@ -181,11 +227,7 @@ class LoginSession(BaseSession):
                 print("Populate Sign In form")
 
                 # Support new and old sign in flows
-                username = self._wait_for_element(
-                    driver,
-                    By.CSS_SELECTOR,
-                    "input#label-email, input#enterUsername",
-                )
+                username = self._wait_for_username(driver)
                 username.send_keys(account.username)
                 if username.get_attribute("id") == "label-email":
                     self._wait_for_element(

@@ -58,8 +58,10 @@ def test_wait_reports_missing_control(
 
 
 @pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("entry_steps", [0, 1, 2])
 def test_login_uses_visible_form(
     legacy: bool,
+    entry_steps: int,
     mock_undetected_chromedriver: mock.MagicMock,
     mock_web_driver_wait: mock.MagicMock,
 ) -> None:
@@ -71,6 +73,9 @@ def test_login_uses_visible_form(
     cookie_button = element("cookies")
     greeting = element("greeting")
     greeting.text = "Sign In"
+    entry = element("sign-in")
+    menu = element("sign-in-link")
+    hidden_entry = element("mobile-sign-in", visible=False)
     driver.find_element.return_value = greeting
     button.click.side_effect = lambda: setattr(greeting, "text", "Hi, Test")
 
@@ -78,7 +83,15 @@ def test_login_uses_visible_form(
         if "Necessary Only" in value:
             return [cookie_button]
         if by == By.CSS_SELECTOR:
+            if (entry_steps == 1 and not entry.click.called) or (
+                entry_steps == 2 and not menu.click.called
+            ):
+                return [hidden_username]
             return [hidden_username, username]
+        if "translate(normalize-space" in value:
+            if entry.click.called:
+                return [hidden_entry, entry, menu]
+            return [entry]
         if value in ("password", "label-password"):
             return [password]
         if value == "verifyOptionForm":
@@ -100,3 +113,22 @@ def test_login_uses_visible_form(
     password.send_keys.assert_called_once_with(account.password)
     assert session.access_token == "test_token"
     assert session.store_id == 42
+    assert entry.click.call_count == int(entry_steps > 0)
+    assert menu.click.call_count == int(entry_steps == 2)
+    hidden_entry.click.assert_not_called()
+
+
+def test_username_wait_does_not_repeatedly_toggle_sign_in(
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    driver = mock.MagicMock()
+    control = element("sign-in")
+    driver.find_elements.side_effect = lambda by, value: (
+        [] if by == By.CSS_SELECTOR else [control]
+    )
+    mock_web_driver_wait.side_effect = lambda condition, message: REAL_UNTIL(
+        WebDriverWait(driver, 0.01, poll_frequency=0.001), condition, message
+    )
+    with pytest.raises(TimeoutException, match="Waiting for sign-in form"):
+        LoginSession._wait_for_username(driver)
+    control.click.assert_called_once()
