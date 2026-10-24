@@ -132,3 +132,33 @@ def test_username_wait_does_not_repeatedly_toggle_sign_in(
     with pytest.raises(TimeoutException, match="Waiting for sign-in form"):
         LoginSession._wait_for_username(driver)
     control.click.assert_called_once()
+
+
+@pytest.mark.parametrize("opens", [False, True])
+def test_account_menu_retries_only_when_unexpanded(
+    opens: bool,
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    driver = mock.MagicMock()
+    control = element("auth_signin_link")
+    control.get_attribute.side_effect = lambda name: (
+        "auth_signin_link"
+        if name == "id"
+        else "true" if opens and control.click.called else "false"
+    )
+    driver.find_elements.side_effect = lambda by, value: (
+        [] if by == By.CSS_SELECTOR else [control]
+    )
+
+    def poll(condition: object, message: str) -> None:
+        # Simulate a header rendered before its event handler is attached.
+        for _ in range(8):
+            condition(driver)  # type: ignore[operator]
+        raise TimeoutException(message)
+
+    mock_web_driver_wait.side_effect = poll
+    with mock.patch(
+        "safeway_coupons.session.time.monotonic", side_effect=range(0, 200, 6)
+    ), pytest.raises(TimeoutException):
+        LoginSession._wait_for_username(driver)
+    assert control.click.call_count == (1 if opens else 3)

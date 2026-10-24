@@ -1,9 +1,43 @@
+from email.parser import BytesParser
+
+import pytest
 import pytest_mock
 
 from safeway_coupons import email as email_mod
+from safeway_coupons.__version__ import __version__
 from safeway_coupons.email import _send_email, email_clip_results
+from safeway_coupons.errors import AuthenticationFailure
 
 from .utils import create_account, create_offer
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_emails_identify_release(
+    failure: bool, mocker: pytest_mock.MockerFixture
+) -> None:
+    popen = mocker.patch.object(email_mod.subprocess, "Popen")
+    account = create_account()
+    if failure:
+        email_mod.email_error(
+            ["sendmail"],
+            account,
+            AuthenticationFailure(Exception("timeout"), account),
+            0,
+            True,
+        )
+    else:
+        email_clip_results(["sendmail"], account, [], None, None, 0, True)
+    message = BytesParser().parsebytes(
+        popen.return_value.communicate.call_args.args[0]
+    )
+    assert message["X-Safeway-Coupons-Version"] == __version__
+    for part in message.walk():
+        if part.get_content_type() in ("text/plain", "text/html"):
+            payload = part.get_payload(decode=True)
+            assert isinstance(payload, bytes)
+            assert (
+                f"Safeway Coupons version: {__version__}" in payload.decode()
+            )
 
 
 def test_from_header_includes_display_name(

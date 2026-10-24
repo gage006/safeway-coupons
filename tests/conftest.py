@@ -1,8 +1,8 @@
 import json
 import time
 import urllib
-from typing import Optional, cast
 from collections.abc import Iterator, Mapping
+from typing import Optional, cast
 from unittest import mock
 
 import pytest

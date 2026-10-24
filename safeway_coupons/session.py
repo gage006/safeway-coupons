@@ -141,8 +141,11 @@ class LoginSession(BaseSession):
     def _wait_for_username(cls, driver: uc.Chrome) -> WebElement:
         # The sign-in URL can land on the storefront. Open its account
         # control (and, if present, the menu's sign-in link) before waiting
-        # for the form. Never toggle the same control repeatedly.
+        # for the form. The header can appear before its click handler is
+        # hydrated, so retry an unexpanded account menu after a grace period.
         clicked: list[WebElement] = []
+        account_attempts = 0
+        last_account_click = 0.0
         sign_in = (
             "//*[self::a or self::button or @role='button' or "
             "(self::span and contains(@class, 'user-greeting') and "
@@ -161,16 +164,40 @@ class LoginSession(BaseSession):
             )
             if username is not None:
                 return username
+            nonlocal account_attempts, last_account_click
             if len(clicked) < 2:
-                for control in browser.find_elements(By.XPATH, sign_in):
+                controls = browser.find_elements(
+                    By.XPATH, "//*[@id='auth_signin_link'] | " + sign_in
+                )
+                for control in controls:
                     try:
+                        is_account = (
+                            control.get_attribute("id") == "auth_signin_link"
+                        )
+                        retry_account = (
+                            is_account
+                            and account_attempts < 3
+                            and time.monotonic() - last_account_click >= 5
+                            and control.get_attribute("aria-expanded")
+                            == "false"
+                        )
                         if (
-                            control not in clicked
+                            (control not in clicked or retry_account)
                             and control.is_displayed()
                             and control.is_enabled()
                         ):
+                            if (
+                                is_account
+                                and control.get_attribute("aria-expanded")
+                                == "true"
+                            ):
+                                continue
                             control.click()
-                            clicked.append(control)
+                            if control not in clicked:
+                                clicked.append(control)
+                            if is_account:
+                                account_attempts += 1
+                                last_account_click = time.monotonic()
                             break
                     except StaleElementReferenceException:
                         continue
@@ -178,7 +205,10 @@ class LoginSession(BaseSession):
 
         username = WebDriverWait(driver, 30).until(
             find_username,
-            message="Waiting for sign-in form after opening Sign in",
+            message=(
+                "Waiting for sign-in form after opening Sign in "
+                "(before submitting credentials)"
+            ),
         )
         assert username is not None
         return username

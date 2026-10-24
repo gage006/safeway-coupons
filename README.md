@@ -254,3 +254,12 @@ Created from [smkent/cookie-python][cookie-python] using
 [pypi]: https://pypi.org/project/safeway-coupons/
 [repo]: https://github.com/smkent/safeway-coupons
 [requests]: https://requests.readthedocs.io/en/latest/
+
+## Release identification
+
+Success and error emails include `Safeway Coupons version` in their body
+(including the HTML footer) and an `X-Safeway-Coupons-Version` header.
+The release pipeline derives this version from Git tags and subsequent commits,
+so each released code change updates it automatically. Tag numbered releases
+with a new `vX.Y.Z` tag; do not reuse release tags. Container builds fetch full
+Git history and pass the derived version into the package build.

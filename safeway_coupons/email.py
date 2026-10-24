@@ -10,6 +10,7 @@ from typing import Optional
 
 import jinja2
 
+from .__version__ import __version__
 from .accounts import Account
 from .errors import ClipError, Error, TooManyClipErrors
 from .models import Offer, OfferType
@@ -87,6 +88,7 @@ def _render_text(report: ClipReport) -> str:
         by_type[offer.offer_pgm].append(offer)
     lines: list[str] = [
         f"Safeway account: {report.account.username}",
+        f"Safeway Coupons version: {__version__}",
         f"Clipped {len(report.clipped)} total:",
     ]
     for offer_type, type_offers in by_type.items():
@@ -147,6 +149,7 @@ def _render_html(report: ClipReport) -> str:
 
     template = _get_jinja_env().get_template("clip_summary.html.j2")
     return template.render(
+        version=__version__,
         account=report.account,
         clipped=report.clipped,
         preheader=_preheader(report),
@@ -180,6 +183,7 @@ def _send_email(
         return
     msg = EmailMessage()
     msg["To"] = account.mail_to
+    msg["X-Safeway-Coupons-Version"] = __version__
     msg["From"] = (
         formataddr((account.mail_from_name, account.mail_from))
         if account.mail_from_name
@@ -248,6 +252,7 @@ def email_error(
     subject = f"Safeway coupons: {error.__class__.__name__} error"
     lines: list[str] = [
         f"Safeway account: {account.username}",
+        f"Safeway Coupons version: {__version__}",
         f"Error: {error}",
     ]
     if isinstance(error, TooManyClipErrors) and error.clipped_offers:
