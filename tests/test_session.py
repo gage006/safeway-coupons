@@ -159,6 +159,6 @@ def test_account_menu_retries_only_when_unexpanded(
     mock_web_driver_wait.side_effect = poll
     with mock.patch(
         "safeway_coupons.session.time.monotonic", side_effect=range(0, 200, 6)
-    ), pytest.raises(TimeoutException):
-        LoginSession._wait_for_username(driver)
+    ):
+        pytest.raises(TimeoutException, LoginSession._wait_for_username, driver)
     assert control.click.call_count == (1 if opens else 3)
