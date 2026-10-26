@@ -112,6 +112,25 @@ class LoginSession(BaseSession):
             return False
         return True
 
+    @classmethod
+    def _verification_required(cls, driver: uc.Chrome) -> bool:
+        # The current modal no longer gives its verification form an ID.
+        return any(
+            cls._ready_element(driver, by, selector) is not None
+            for by, selector in (
+                (By.ID, "verifyOptionForm"),
+                (
+                    By.XPATH,
+                    "//*[@id='modal-authenticate']//*[self::h1 or "
+                    "self::h2][contains(., 'new device')]",
+                ),
+                (
+                    By.CSS_SELECTOR,
+                    "#modal-authenticate input[formcontrolname='otpCode']",
+                ),
+            )
+        )
+
     @staticmethod
     def _ready_element(
         driver: uc.Chrome, by: str, value: str
@@ -288,7 +307,7 @@ class LoginSession(BaseSession):
                     ).click()
                 WebDriverWait(driver, 30).until(
                     lambda browser: self._sign_in_success(browser)
-                    or self._ready_element(browser, By.ID, "verifyOptionForm"),
+                    or self._verification_required(browser),
                     message=(
                         "Waiting for sign-in result or device verification"
                     ),
@@ -296,25 +315,32 @@ class LoginSession(BaseSession):
 
                 # Check for verify device
                 print("Check for verify device required")
-                if self._ready_element(driver, By.ID, "verifyOptionForm"):
+                if self._verification_required(driver):
                     if not self.interactive_sign_in:
                         raise Exception(
                             "Interactive sign-in required, but not enabled."
                             " Run with --interactive-sign-in"
                         )
-                    print("Click Text code")
-                    self._wait_for_element(
+                    # Some sessions land directly on code entry.
+                    if not self._ready_element(
                         driver,
-                        By.XPATH,
-                        '//span[contains(text(), "Text code to")]',
-                    ).click()
-                    time.sleep(0.5)
-                    print("Click Continue button")
-                    self._wait_for_element(
-                        driver,
-                        By.XPATH,
-                        '//button[contains(text(), "Continue")]',
-                    ).click()
+                        By.CSS_SELECTOR,
+                        "input[formcontrolname='otpCode']",
+                    ):
+                        print("Click Text code")
+                        self._wait_for_element(
+                            driver,
+                            By.XPATH,
+                            '//*[self::span or self::label]'
+                            '[contains(text(), "Text code to")]',
+                        ).click()
+                        time.sleep(0.5)
+                        print("Click Continue button")
+                        self._wait_for_element(
+                            driver,
+                            By.XPATH,
+                            '//button[contains(text(), "Continue")]',
+                        ).click()
 
                     code = self._get_code_from_human()
                     print("Typing verification code")

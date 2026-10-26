@@ -8,6 +8,7 @@ from selenium.common.exceptions import (
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
+from safeway_coupons.errors import AuthenticationFailure
 from safeway_coupons.session import LoginSession
 
 from .utils import create_account
@@ -82,6 +83,8 @@ def test_login_uses_visible_form(
     def find_elements(by: str, value: str) -> list[mock.MagicMock]:
         if "Necessary Only" in value:
             return [cookie_button]
+        if "new device" in value or "otpCode" in value:
+            return []
         if by == By.CSS_SELECTOR:
             if (entry_steps == 1 and not entry.click.called) or (
                 entry_steps == 2 and not menu.click.called
@@ -116,6 +119,40 @@ def test_login_uses_visible_form(
     assert entry.click.call_count == int(entry_steps > 0)
     assert menu.click.call_count == int(entry_steps == 2)
     hidden_entry.click.assert_not_called()
+
+
+@pytest.mark.parametrize("screen", ["legacy", "new-device", "code-entry"])
+def test_detects_verification_screens(screen: str) -> None:
+    driver = mock.MagicMock()
+
+    def controls(by: str, value: str) -> list[mock.MagicMock]:
+        matches = (
+            (screen == "legacy" and value == "verifyOptionForm")
+            or (screen == "new-device" and "new device" in value)
+            or (screen == "code-entry" and "otpCode" in value)
+        )
+        return [element("verification")] if matches else []
+
+    driver.find_elements.side_effect = controls
+    assert LoginSession._verification_required(driver)
+
+
+def test_hidden_verification_is_not_required() -> None:
+    driver = mock.MagicMock()
+    driver.find_elements.return_value = [element("old-modal", visible=False)]
+    assert not LoginSession._verification_required(driver)
+
+
+def test_new_verification_requires_interactive_sign_in(
+    mock_undetected_chromedriver: mock.MagicMock,
+) -> None:
+    driver = mock_undetected_chromedriver
+    driver.find_element.return_value.text = "Sign in"
+    driver.find_elements.side_effect = lambda by, value: (
+        [element("heading")] if "new device" in value else []
+    )
+    with pytest.raises(AuthenticationFailure, match="--interactive-sign-in"):
+        LoginSession(create_account(), False, None)
 
 
 def test_username_wait_does_not_repeatedly_toggle_sign_in(
