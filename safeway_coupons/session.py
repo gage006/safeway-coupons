@@ -331,7 +331,7 @@ class LoginSession(BaseSession):
                         self._wait_for_element(
                             driver,
                             By.XPATH,
-                            '//*[self::span or self::label]'
+                            "//*[self::span or self::label]"
                             '[contains(text(), "Text code to")]',
                         ).click()
                         time.sleep(0.5)
