@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
 from safeway_coupons.errors import AuthenticationFailure
-from safeway_coupons.session import LoginSession
+from safeway_coupons.session import ExceptionWithAttachments, LoginSession
 
 from .utils import create_account
 
@@ -105,10 +105,12 @@ def test_login_uses_visible_form(
     mock_web_driver_wait.side_effect = lambda condition, message: REAL_UNTIL(
         WebDriverWait(driver, 1, poll_frequency=0.001), condition, message
     )
-    driver.get_cookie.side_effect = [
-        {"value": '{"accessToken": "test_token"}'},
-        {"value": '{"info": {"J4U": {"storeId": 42}}}'},
-    ]
+    driver.get_cookie.side_effect = {
+        "SWY_SHARED_SESSION": {"value": '{"accessToken": "test_token"}'},
+        "SWY_SHARED_SESSION_INFO": {
+            "value": '{"info": {"J4U": {"storeId": 42}}}'
+        },
+    }.get
     account = create_account()
     session = LoginSession(account, False, None)
     username.send_keys.assert_called_once_with(account.username)
@@ -201,3 +203,122 @@ def test_account_menu_retries_only_when_unexpanded(
             TimeoutException, LoginSession._wait_for_username, driver
         )
     assert control.click.call_count == (1 if opens else 3)
+
+
+def session_for_wait() -> LoginSession:
+    return LoginSession.__new__(LoginSession)
+
+
+def test_session_cookies_work_before_greeting() -> None:
+    driver = mock.MagicMock()
+    driver.find_elements.return_value = []
+    driver.find_element.return_value.text = "Sign in"
+    driver.get_cookie.side_effect = {
+        "SWY_SHARED_SESSION": {"value": '{"accessToken":"token"}'},
+        "SWY_SHARED_SESSION_INFO": {
+            "value": '{"info":{"J4U":{"storeId":42}}}'
+        },
+    }.get
+    session = session_for_wait()
+    assert session._session_ready(driver)
+    assert not session._sign_in_success(driver)
+
+
+@pytest.mark.parametrize(
+    "value", [None, "bad-json", "{}", '{"accessToken":""}']
+)
+def test_incomplete_session_not_ready(value: object) -> None:
+    driver = mock.MagicMock()
+    driver.get_cookie.return_value = (
+        None if value is None else {"value": value}
+    )
+    assert not session_for_wait()._session_ready(driver)
+
+
+def test_delayed_sign_in_uses_90_second_wait(
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    session = session_for_wait()
+    driver = mock.MagicMock()
+    driver.find_elements.return_value = []
+    with mock.patch.object(
+        session, "_session_ready", side_effect=[False, False, True]
+    ):
+
+        def poll(condition: object, message: str) -> None:
+            assert not condition(driver)  # type: ignore[operator]
+            assert not condition(driver)  # type: ignore[operator]
+            assert condition(driver)  # type: ignore[operator]
+
+        mock_web_driver_wait.side_effect = poll
+        with mock.patch(
+            "safeway_coupons.session.WebDriverWait", wraps=WebDriverWait
+        ) as wait:
+            session._wait_for_sign_in(driver)
+        wait.assert_called_once_with(driver, 90)
+
+
+def test_final_session_check_recovers_timeout(
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    session = session_for_wait()
+    driver = mock.MagicMock()
+    driver.find_elements.return_value = []
+    mock_web_driver_wait.side_effect = TimeoutException()
+    with mock.patch.object(session, "_session_ready", return_value=True):
+        session._wait_for_sign_in(driver)
+
+
+@pytest.mark.parametrize("partial", [False, True])
+def test_timeout_reports_session_state(
+    partial: bool,
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    session = session_for_wait()
+    driver = mock.MagicMock()
+    driver.find_elements.return_value = []
+    driver.get_cookie.return_value = {"value": "{}"} if partial else None
+    mock_web_driver_wait.side_effect = TimeoutException()
+    state = "session present but incomplete" if partial else "signed out"
+    with pytest.raises(TimeoutException, match=state):
+        session._wait_for_sign_in(driver)
+
+
+def test_verification_takes_precedence_over_cookies(
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    session = session_for_wait()
+    driver = mock.MagicMock()
+    driver.find_elements.return_value = [element("verification")]
+    with mock.patch.object(
+        session, "_session_ready", return_value=True
+    ) as ready:
+        mock_web_driver_wait.side_effect = (
+            lambda condition, message: condition(driver)
+        )
+        session._wait_for_sign_in(driver)
+        ready.assert_not_called()
+        mock_web_driver_wait.side_effect = TimeoutException()
+        with pytest.raises(TimeoutException, match="verification required"):
+            session._wait_for_sign_in(driver, allow_verification=False)
+
+
+def test_timeout_saves_screenshot(
+    tmp_path: object,
+    mock_undetected_chromedriver: mock.MagicMock,
+) -> None:
+    from pathlib import Path
+
+    session = session_for_wait()
+    session.debug_dir = Path(str(tmp_path)) / "diagnostics"
+    driver = mock_undetected_chromedriver
+    driver.save_screenshot.return_value = True
+    with pytest.raises(
+        ExceptionWithAttachments
+    ) as error, session._chrome_driver():
+        raise TimeoutException("session present but incomplete")
+    assert error.value.attachments == [session.debug_dir / "screenshot.png"]
+    driver.save_screenshot.assert_called_once_with(
+        str(session.debug_dir / "screenshot.png")
+    )
+    assert session.debug_dir.is_dir()

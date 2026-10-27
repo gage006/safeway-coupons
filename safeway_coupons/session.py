@@ -55,6 +55,8 @@ class BaseSession:
 
 
 class LoginSession(BaseSession):
+    SIGN_IN_TIMEOUT = 90
+
     def __init__(
         self,
         account: Account,
@@ -83,9 +85,10 @@ class LoginSession(BaseSession):
             attachments: list[Path] = []
             if self.debug_dir:
                 path = self.debug_dir / "screenshot.png"
-                with contextlib.suppress(WebDriverException):
-                    driver.save_screenshot(path)
-                    attachments.append(path)
+                with contextlib.suppress(WebDriverException, OSError):
+                    self.debug_dir.mkdir(parents=True, exist_ok=True)
+                    if driver.save_screenshot(str(path)):
+                        attachments.append(path)
             raise ExceptionWithAttachments(
                 f"[{type(e).__name__}] {e}", attachments=attachments
             ) from e
@@ -130,6 +133,52 @@ class LoginSession(BaseSession):
                 ),
             )
         )
+
+    def _session_ready(self, driver: uc.Chrome) -> bool:
+        try:
+            session = self._parse_cookie_value(
+                driver.get_cookie("SWY_SHARED_SESSION")["value"]
+            )
+            info = self._parse_cookie_value(
+                driver.get_cookie("SWY_SHARED_SESSION_INFO")["value"]
+            )
+            token = session["accessToken"]
+            store = info["info"]["J4U"]["storeId"]
+            return isinstance(token, str) and bool(token) and bool(store)
+        except (TypeError, ValueError, KeyError):
+            return False
+
+    def _wait_for_sign_in(
+        self, driver: uc.Chrome, allow_verification: bool = True
+    ) -> None:
+        def finished(browser: uc.Chrome) -> bool:
+            # A visible challenge takes precedence over existing cookies.
+            if self._verification_required(browser):
+                return allow_verification
+            return self._session_ready(browser)
+
+        try:
+            WebDriverWait(driver, self.SIGN_IN_TIMEOUT).until(
+                finished,
+                message="Waiting for sign-in session or device verification",
+            )
+        except TimeoutException as e:
+            # Authentication can finish at the timeout boundary.
+            if finished(driver):
+                return
+            if self._verification_required(driver):
+                state = "verification required"
+            elif any(
+                driver.get_cookie(name)
+                for name in ("SWY_SHARED_SESSION", "SWY_SHARED_SESSION_INFO")
+            ):
+                state = "session present but incomplete"
+            else:
+                state = "signed out (no session cookies)"
+            raise TimeoutException(
+                f"Sign-in did not finish within {self.SIGN_IN_TIMEOUT}s: "
+                f"{state}. No credentials were resubmitted."
+            ) from e
 
     @staticmethod
     def _ready_element(
@@ -305,13 +354,7 @@ class LoginSession(BaseSession):
                         By.XPATH,
                         '//button[contains(text(), "Sign In")]',
                     ).click()
-                WebDriverWait(driver, 30).until(
-                    lambda browser: self._sign_in_success(browser)
-                    or self._verification_required(browser),
-                    message=(
-                        "Waiting for sign-in result or device verification"
-                    ),
-                )
+                self._wait_for_sign_in(driver)
 
                 # Check for verify device
                 print("Check for verify device required")
@@ -355,15 +398,8 @@ class LoginSession(BaseSession):
                     ).click()
 
                 # Check for sign in success
-                print("Wait for signed in landing page to load")
-                WebDriverWait(driver, 30).until(
-                    self._sign_in_success,
-                    message="Waiting for signed-in user greeting",
-                )
-                if not self._sign_in_success(driver):
-                    raise Exception(
-                        "Sign in failure, unable to verify user is signed in"
-                    )
+                print("Wait for signed-in session information")
+                self._wait_for_sign_in(driver, allow_verification=False)
 
             print("Retrieve session information")
             session_cookie = self._parse_cookie_value(

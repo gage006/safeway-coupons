@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - Ubuntu
+          - ubuntu-24.04
         python-version:
           - "3.9"
           - "3.10"
@@ -28,10 +28,10 @@ jobs:
         poetry-version:
           - "2.0"
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - name: 💾 Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -51,7 +51,7 @@ jobs:
           paths: ./.pytest_results.xml
 
       - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         if: ${{ env.ENABLE_COVERAGE == 'true' }}
