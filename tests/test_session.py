@@ -313,9 +313,10 @@ def test_timeout_saves_screenshot(
     session.debug_dir = Path(str(tmp_path)) / "diagnostics"
     driver = mock_undetected_chromedriver
     driver.save_screenshot.return_value = True
-    with pytest.raises(
-        ExceptionWithAttachments
-    ) as error, session._chrome_driver():
+    with (
+        pytest.raises(ExceptionWithAttachments) as error,
+        session._chrome_driver(),
+    ):
         raise TimeoutException("session present but incomplete")
     assert error.value.attachments == [session.debug_dir / "screenshot.png"]
     driver.save_screenshot.assert_called_once_with(
