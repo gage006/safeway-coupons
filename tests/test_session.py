@@ -163,7 +163,7 @@ def test_username_wait_does_not_repeatedly_toggle_sign_in(
     driver = mock.MagicMock()
     control = element("sign-in")
     driver.find_elements.side_effect = lambda by, value: (
-        [] if by == By.CSS_SELECTOR else [control]
+        [] if by in (By.CSS_SELECTOR, By.ID) else [control]
     )
     mock_web_driver_wait.side_effect = lambda condition, message: REAL_UNTIL(
         WebDriverWait(driver, 0.01, poll_frequency=0.001), condition, message
@@ -186,7 +186,7 @@ def test_account_menu_retries_only_when_unexpanded(
         else "true" if opens and control.click.called else "false"
     )
     driver.find_elements.side_effect = lambda by, value: (
-        [] if by == By.CSS_SELECTOR else [control]
+        [] if by in (By.CSS_SELECTOR, By.ID) else [control]
     )
 
     def poll(condition: object, message: str) -> None:
@@ -202,7 +202,55 @@ def test_account_menu_retries_only_when_unexpanded(
         pytest.raises(
             TimeoutException, LoginSession._wait_for_username, driver
         )
-    assert control.click.call_count == (1 if opens else 3)
+    assert control.click.call_count == (1 if opens else 8)
+
+
+@pytest.mark.parametrize("rerender", [False, True])
+def test_delayed_account_menu_with_incorrect_expanded_attribute(
+    rerender: bool,
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    driver = mock.MagicMock()
+    account = element("auth_signin_link")
+    account.get_attribute.side_effect = lambda name: (
+        "auth_signin_link" if name == "id" else "false"
+    )
+    menu = element("signin-dropdown")
+    sign_in = element("sign-in")
+    username = element("enterUsername")
+    attempts = 0
+
+    def open_menu() -> None:
+        nonlocal attempts
+        attempts += 1
+
+    account.click.side_effect = open_menu
+
+    def controls(by: str, value: str) -> list[mock.MagicMock]:
+        if by == By.CSS_SELECTOR:
+            return [username] if sign_in.click.called else []
+        if value == "signin-dropdown":
+            return [menu] if attempts >= 4 else []
+        # Hydration can replace the header element after an ignored click.
+        header = mock.MagicMock(wraps=account) if rerender else account
+        return [header, sign_in] if attempts >= 4 else [header]
+
+    driver.find_elements.side_effect = controls
+
+    def poll(condition: object, message: str) -> object:
+        for _ in range(8):
+            result = condition(driver)  # type: ignore[operator]
+            if result is not None:
+                return result
+        raise TimeoutException(message)
+
+    mock_web_driver_wait.side_effect = poll
+    with mock.patch(
+        "safeway_coupons.session.time.monotonic", side_effect=range(0, 200, 6)
+    ):
+        assert LoginSession._wait_for_username(driver) is username
+    assert attempts == 4
+    sign_in.click.assert_called_once()
 
 
 def session_for_wait() -> LoginSession:

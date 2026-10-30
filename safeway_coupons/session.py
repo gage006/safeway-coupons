@@ -212,8 +212,7 @@ class LoginSession(BaseSession):
         # for the form. The header can appear before its click handler is
         # hydrated, so retry an unexpanded account menu after a grace period.
         clicked: list[WebElement] = []
-        account_attempts = 0
-        last_account_click = 0.0
+        last_account_click: Optional[float] = None
         sign_in = (
             "//*[self::a or self::button or @role='button' or "
             "(self::span and contains(@class, 'user-greeting') and "
@@ -232,7 +231,7 @@ class LoginSession(BaseSession):
             )
             if username is not None:
                 return username
-            nonlocal account_attempts, last_account_click
+            nonlocal last_account_click
             if len(clicked) < 2:
                 controls = browser.find_elements(
                     By.XPATH, "//*[@id='auth_signin_link'] | " + sign_in
@@ -242,36 +241,36 @@ class LoginSession(BaseSession):
                         is_account = (
                             control.get_attribute("id") == "auth_signin_link"
                         )
-                        retry_account = (
-                            is_account
-                            and account_attempts < 3
-                            and time.monotonic() - last_account_click >= 5
-                            and control.get_attribute("aria-expanded")
-                            == "false"
-                        )
+                        if is_account and (
+                            cls._ready_element(
+                                browser, By.ID, "signin-dropdown"
+                            )
+                            is not None
+                            or control.get_attribute("aria-expanded") == "true"
+                            or (
+                                last_account_click is not None
+                                and time.monotonic() - last_account_click < 5
+                            )
+                        ):
+                            # Safeway leaves aria-expanded=false even while
+                            # the dropdown is visible. Do not toggle it shut.
+                            continue
                         if (
-                            (control not in clicked or retry_account)
+                            control not in clicked
                             and control.is_displayed()
                             and control.is_enabled()
                         ):
-                            if (
-                                is_account
-                                and control.get_attribute("aria-expanded")
-                                == "true"
-                            ):
-                                continue
                             control.click()
-                            if control not in clicked:
-                                clicked.append(control)
                             if is_account:
-                                account_attempts += 1
                                 last_account_click = time.monotonic()
+                            else:
+                                clicked.append(control)
                             break
                     except StaleElementReferenceException:
                         continue
             return None
 
-        username = WebDriverWait(driver, 30).until(
+        username = WebDriverWait(driver, cls.SIGN_IN_TIMEOUT).until(
             find_username,
             message=(
                 "Waiting for sign-in form after opening Sign in "
