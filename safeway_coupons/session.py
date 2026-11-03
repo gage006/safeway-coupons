@@ -351,7 +351,8 @@ class LoginSession(BaseSession):
                         self._wait_for_element(
                             driver,
                             By.XPATH,
-                            '//button[contains(text(), "Sign in with password")]',
+                            "//button[contains(text(), "
+                            '"Sign in with password")]',
                         ).click()
                         time.sleep(2)
                         print("Populate password")
