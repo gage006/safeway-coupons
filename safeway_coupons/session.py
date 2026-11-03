@@ -6,7 +6,7 @@ import time
 import urllib
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union, cast
 
 import requests
 import undetected_chromedriver as uc  # type: ignore
@@ -134,12 +134,13 @@ class LoginSession(BaseSession):
             )
         )
 
-    def _session_ready(self, driver: uc.Chrome) -> bool:
+    @classmethod
+    def _session_ready(cls, driver: uc.Chrome) -> bool:
         try:
-            session = self._parse_cookie_value(
+            session = cls._parse_cookie_value(
                 driver.get_cookie("SWY_SHARED_SESSION")["value"]
             )
-            info = self._parse_cookie_value(
+            info = cls._parse_cookie_value(
                 driver.get_cookie("SWY_SHARED_SESSION_INFO")["value"]
             )
             token = session["accessToken"]
@@ -206,7 +207,7 @@ class LoginSession(BaseSession):
         return element
 
     @classmethod
-    def _wait_for_username(cls, driver: uc.Chrome) -> WebElement:
+    def _wait_for_username(cls, driver: uc.Chrome) -> Optional[WebElement]:
         # The sign-in URL can land on the storefront. Open its account
         # control (and, if present, the menu's sign-in link) before waiting
         # for the form. The header can appear before its click handler is
@@ -223,7 +224,14 @@ class LoginSession(BaseSession):
             "'abcdefghijklmnopqrstuvwxyz') = 'sign in / up']"
         )
 
-        def find_username(browser: uc.Chrome) -> Optional[WebElement]:
+        def find_username(
+            browser: uc.Chrome,
+        ) -> Optional[Union[WebElement, bool]]:
+            # SSO can finish while the storefront header still says Sign in.
+            if cls._session_ready(browser) and not cls._verification_required(
+                browser
+            ):
+                return True
             username = cls._ready_element(
                 browser,
                 By.CSS_SELECTOR,
@@ -277,8 +285,7 @@ class LoginSession(BaseSession):
                 "(before submitting credentials)"
             ),
         )
-        assert username is not None
-        return username
+        return None if username is True else cast(WebElement, username)
 
     @staticmethod
     def _get_code_from_human(timeout: int = 290, interval: int = 10) -> str:
@@ -320,39 +327,44 @@ class LoginSession(BaseSession):
 
             # Check if already signed in
             print("Check if already signed in")
-            if not self._sign_in_success(driver):
+            if not self._session_ready(driver) or self._verification_required(
+                driver
+            ):
                 print("Populate Sign In form")
 
                 # Support new and old sign in flows
                 username = self._wait_for_username(driver)
-                username.send_keys(account.username)
-                if username.get_attribute("id") == "label-email":
-                    self._wait_for_element(
-                        driver, By.ID, "label-password"
-                    ).send_keys(account.password)
-                    time.sleep(0.5)
-                    print("Click Sign In button")
-                    self._wait_for_element(driver, By.ID, "btnSignIn").click()
-                else:
-                    time.sleep(0.5)
-                    print("Click Sign in with password button")
-                    self._wait_for_element(
-                        driver,
-                        By.XPATH,
-                        '//button[contains(text(), "Sign in with password")]',
-                    ).click()
-                    time.sleep(2)
-                    print("Populate password")
-                    self._wait_for_element(
-                        driver, By.ID, "password"
-                    ).send_keys(account.password)
-                    time.sleep(0.5)
-                    print("Click Sign In button")
-                    self._wait_for_element(
-                        driver,
-                        By.XPATH,
-                        '//button[contains(text(), "Sign In")]',
-                    ).click()
+                if username is not None:
+                    username.send_keys(account.username)
+                    if username.get_attribute("id") == "label-email":
+                        self._wait_for_element(
+                            driver, By.ID, "label-password"
+                        ).send_keys(account.password)
+                        time.sleep(0.5)
+                        print("Click Sign In button")
+                        self._wait_for_element(
+                            driver, By.ID, "btnSignIn"
+                        ).click()
+                    else:
+                        time.sleep(0.5)
+                        print("Click Sign in with password button")
+                        self._wait_for_element(
+                            driver,
+                            By.XPATH,
+                            '//button[contains(text(), "Sign in with password")]',
+                        ).click()
+                        time.sleep(2)
+                        print("Populate password")
+                        self._wait_for_element(
+                            driver, By.ID, "password"
+                        ).send_keys(account.password)
+                        time.sleep(0.5)
+                        print("Click Sign In button")
+                        self._wait_for_element(
+                            driver,
+                            By.XPATH,
+                            '//button[contains(text(), "Sign In")]',
+                        ).click()
                 self._wait_for_sign_in(driver)
 
                 # Check for verify device
@@ -413,5 +425,6 @@ class LoginSession(BaseSession):
             except Exception as e:
                 raise Exception("Unable to retrieve store ID") from e
 
-    def _parse_cookie_value(self, value: str) -> Any:
+    @staticmethod
+    def _parse_cookie_value(value: str) -> Any:
         return json.loads(urllib.parse.unquote(value))

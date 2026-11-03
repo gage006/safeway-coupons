@@ -105,12 +105,15 @@ def test_login_uses_visible_form(
     mock_web_driver_wait.side_effect = lambda condition, message: REAL_UNTIL(
         WebDriverWait(driver, 1, poll_frequency=0.001), condition, message
     )
-    driver.get_cookie.side_effect = {
+    cookies = {
         "SWY_SHARED_SESSION": {"value": '{"accessToken": "test_token"}'},
         "SWY_SHARED_SESSION_INFO": {
             "value": '{"info": {"J4U": {"storeId": 42}}}'
         },
-    }.get
+    }
+    driver.get_cookie.side_effect = lambda name: (
+        cookies.get(name) if button.click.called else None
+    )
     account = create_account()
     session = LoginSession(account, False, None)
     username.send_keys.assert_called_once_with(account.username)
@@ -371,3 +374,31 @@ def test_timeout_saves_screenshot(
         str(session.debug_dir / "screenshot.png")
     )
     assert session.debug_dir.is_dir()
+
+
+@pytest.mark.parametrize("delayed", [False, True])
+def test_sso_session_skips_stale_sign_in_header(
+    delayed: bool,
+    mock_undetected_chromedriver: mock.MagicMock,
+    mock_web_driver_wait: mock.MagicMock,
+) -> None:
+    driver = mock_undetected_chromedriver
+    driver.find_elements.return_value = []
+    driver.find_element.return_value.text = "Sign in"
+    driver.get_cookie.side_effect = {
+        "SWY_SHARED_SESSION": {"value": '{"accessToken":"token"}'},
+        "SWY_SHARED_SESSION_INFO": {
+            "value": '{"info":{"J4U":{"storeId":42}}}'
+        },
+    }.get
+    mock_web_driver_wait.side_effect = lambda condition, message: REAL_UNTIL(
+        WebDriverWait(driver, 0), condition, message
+    )
+    readiness = [False, True, True, True] if delayed else [True]
+    with mock.patch.object(
+        LoginSession, "_session_ready", side_effect=readiness
+    ):
+        session = LoginSession(create_account(), False, None)
+    assert session.access_token == "token"
+    assert session.store_id == 42
+    driver.find_element.return_value.click.assert_not_called()
